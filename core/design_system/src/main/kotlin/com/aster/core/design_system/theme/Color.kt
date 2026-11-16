@@ -1,4 +1,4 @@
-package com.aster.thepress.ui.theme
+package com.aster.core.design_system.theme
 
 import androidx.compose.ui.graphics.Color
 
