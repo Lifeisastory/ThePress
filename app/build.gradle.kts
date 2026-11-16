@@ -1,19 +1,13 @@
 plugins {
-    alias(libs.plugins.android.application)
+    id("thepress.android.application")
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "com.aster.thepress"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
 
     defaultConfig {
         applicationId = "com.aster.thepress"
-        minSdk = 24
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
