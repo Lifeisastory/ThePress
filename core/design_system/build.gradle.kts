@@ -11,7 +11,10 @@ android {
 }
 
 dependencies {
+    // Backdrop is part of the navigation bar's public API.
+    api(libs.kyant.backdrop)
     implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)

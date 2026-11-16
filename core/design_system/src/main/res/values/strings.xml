@@ -1,0 +1,33 @@
+<resources>
+    <string name="glass_demo_home">首页</string>
+    <string name="glass_demo_discover">发现</string>
+    <string name="glass_demo_saved">收藏</string>
+    <string name="glass_demo_description">慢一点，让好内容浮现。滑动浏览，找到今天的灵感。</string>
+    <string name="glass_demo_reading_time">5 分钟阅读</string>
+    <string-array name="glass_demo_titles">
+        <item>今天，读点好内容。</item>
+        <item>在好奇心之外。</item>
+        <item>值得再读一次。</item>
+    </string-array>
+    <string-array name="glass_demo_home_articles">
+        <item>在城市的留白里，找回生活的节奏</item>
+        <item>光与色彩，日常中的设计灵感</item>
+        <item>一杯咖啡的时间，读懂一个新想法</item>
+        <item>周末，向一片绿色出发</item>
+        <item>把注意力留给真正喜欢的事</item>
+    </string-array>
+    <string-array name="glass_demo_discover_articles">
+        <item>那些让人停下脚步的建筑</item>
+        <item>一张唱片里的另一座城市</item>
+        <item>从一件小物，发现一种生活</item>
+        <item>走一条从未走过的路</item>
+        <item>打开视野的五个新角度</item>
+    </string-array>
+    <string-array name="glass_demo_saved_articles">
+        <item>留住一个让你心动的瞬间</item>
+        <item>关于专注，这篇值得重读</item>
+        <item>写给未来自己的生活清单</item>
+        <item>那些读完仍有回响的文字</item>
+        <item>把灵感收藏，把生活展开</item>
+    </string-array>
+</resources>
