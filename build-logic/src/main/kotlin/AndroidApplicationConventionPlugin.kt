@@ -12,9 +12,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
         // 配置该模块的 android { ... }
         target.extensions.configure<ApplicationExtension> {
             compileSdk {
-                version = release(36) {
-                    minorApiLevel = 1
-                }
+                version = release(37)
             }
 
             defaultConfig {

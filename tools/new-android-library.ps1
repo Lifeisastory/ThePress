@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-创建使用 Kotlin 源码目录的 Android Library 模块
+创建包含 namespace 包目录的 Kotlin Android Library 模块
 .EXAMPLE
 pwsh -File ./tools/new-android-library.ps1 -ModulePath :core:reader_ui -Namespace com.aster.core.reader_ui -Compose
 .EXAMPLE
@@ -78,11 +78,13 @@ dependencies {$composeDependencies
 }
 "@
 
-# 保留空的源码目录，便于其他开发者检出后继续使用同一目录结构
+# 根据 namespace 创建包目录，并用占位文件保留空目录供 Git 跟踪
+$packagePath = $Namespace.Replace('.', '/')
 foreach ($sourceSet in @('main', 'test', 'androidTest')) {
     $sourceDirectory = Join-Path $moduleDirectory "src/$sourceSet/kotlin"
-    New-Item -ItemType Directory -Path $sourceDirectory -Force | Out-Null
-    [System.IO.File]::WriteAllText((Join-Path $sourceDirectory '.gitkeep'), '')
+    $packageDirectory = Join-Path $sourceDirectory $packagePath
+    New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path $packageDirectory '.gitkeep'), '')
 }
 
 [System.IO.File]::WriteAllText((Join-Path $moduleDirectory 'build.gradle.kts'), $buildScript + "`n")

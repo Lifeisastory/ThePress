@@ -27,6 +27,7 @@
             <option value="$PROJECT_DIR$/core/design_system" />
             <option value="$PROJECT_DIR$/core/localdb" />
             <option value="$PROJECT_DIR$/core/localsp" />
+            <option value="$PROJECT_DIR$/core/network" />
             <option value="$PROJECT_DIR$/core/ui" />
           </set>
         </option>
