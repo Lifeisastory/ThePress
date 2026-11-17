@@ -2,8 +2,8 @@ package com.aster.core.data.repository
 
 import com.aster.core.analytics.Logger
 import com.aster.core.analytics.LogEvent
-import com.aster.core.data.model.NewsFailureReason
-import com.aster.core.data.model.NewsLoadResult
+import com.aster.core.model.NewsFailureReason
+import com.aster.core.model.NewsLoadResult
 import com.aster.core.network.NetworkClient
 import com.aster.core.network.adapters.mapping.JsonPath
 import com.aster.core.network.model.HttpRequestSpec
@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -53,7 +54,8 @@ class NewsRepositoryCacheTest {
         client, cache,
         definitions = listOf("one", "two").map { id ->
             SourceDefinition(id, id, HttpRequestSpec(server.url("/$id")), ItemMapping(
-                JsonPath(""), JsonPath("id"), JsonPath("title"), UrlMapping.Field(JsonPath("url"))
+                JsonPath(""), JsonPath("id"), JsonPath("title"), UrlMapping.Field(JsonPath("url")),
+                imagePath = JsonPath("image")
             ))
         },
         currentTimeMillis = { now },
@@ -77,6 +79,20 @@ class NewsRepositoryCacheTest {
 
     private fun enqueue(id: String) {
         server.enqueue(MockResponse(body = """[{"id":"$id","title":"Title $id","url":"https://example.com/$id"}]"""))
+    }
+
+    @Test(timeout = 10_000)
+    fun imagesSurviveCacheAndLocalSearchDoesNotFetchEvenAfterExpiry() = runBlocking {
+        server.enqueue(MockResponse(body = """[{"id":"picture","title":"Title","url":"/article","image":"/cover.jpg"}]"""))
+        val result = repository.fetch("one") as NewsLoadResult.Success
+        assertEquals(server.url("/cover.jpg").toString(), result.articles.single().imageUrl)
+        assertEquals(result, createRepository().fetch("one"))
+        now += 600_000
+        assertEquals(result.articles, repository.readCached("one"))
+        assertEquals(result.articles, repository.search("  50%_\\  ", "one").first())
+        assertEquals("%50\\%\\_\\\\%", cache.searchPattern)
+        assertEquals("one", cache.searchSourceId)
+        assertEquals(1, server.requestCount)
     }
 
     @Test(timeout = 10_000)

@@ -176,6 +176,7 @@ val adaptersWithExample = AdapterManager(networkClient, BuiltInSources.all + exa
 - `AssignedJsonExtractor(variable)` 支持变量赋值中的 JSON 对象/数组，扫描字符串转义与括号边界，不执行表达式。`HtmlListExtractor` 使用 Jsoup CSS 选择器提取文本/属性，空列表选择器结果是提取错误。`FeedExtractor` 支持 RSS 2.0 / Atom，优先 GUID/ID，缺失时用链接，摘要转纯文本；拒绝 DTD。统一映射依旧只接受 HTTP/HTTPS 链接。
 - `JsonPath` 仅支持字段和非负数组下标，如 `data.cards[0].content`，空字符串表示根节点。列表路径相对文档根节点，条目字段路径相对每条记录；不支持通配符、筛选表达式或含点号的字段名。
 - ID、标题和链接为必填项，摘要允许缺失；字段支持字符串或数字，数字 ID 保留原文本精度。链接字段支持相对路径，以重定向后的响应 URL 为基准，仅接受 HTTP/HTTPS。
+- 配图通过可选的 `ItemMapping.imagePath` 映射至 `SourceItem.imageUrl`。已接入腾讯视频、百度、B站热门视频/排行榜、今日头条和知乎；RSS/Atom 支持媒体缩略图、图片附件及摘要内首图，HTML 提取可配置图片属性。缺失、空白、非字符串及非 HTTP/HTTPS 图片地址按无图处理。B站 `*.hdslb.com` 图片使用已验证可用的 HTTPS。
 - `UrlMapping.Template("https://example.com/items/{id}")` 可拼接详情地址，只替换 `{id}`，并将 ID 编码为 URL 组件。
 - `requiredRootValues` 检查响应级字段，例如 `ret == 0`；`excludedItems` 按字段值排除条目，例如百度的置顶条目；`allowEmpty` 控制是否允许空结果。所有内置定义要求结果非空。结构变化、必填字段缺失会返回错误；只跳过来源规则明确排除的广告、置顶或不支持的内容类型。
 - 来源 ID 必须唯一，重复注册在创建 Manager 时失败；未注册 ID 返回 `SOURCE` 阶段错误，不发出网络请求。

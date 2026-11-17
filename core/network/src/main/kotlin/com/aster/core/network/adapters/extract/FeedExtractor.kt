@@ -31,11 +31,24 @@ object FeedExtractor : ContentExtractor {
                 }?.attr("href").orEmpty()
             } else text("link")
             val description = if (atom) text("summary").ifBlank { text("content") } else text("description")
+            val html = Jsoup.parseBodyFragment(description, response.url.toString())
+            val image = row.getAllElements().firstOrNull {
+                it.normalName() == "media:thumbnail" ||
+                    (it.normalName() == "media:content" &&
+                        (it.attr("medium") == "image" || it.attr("type").startsWith("image/"))) ||
+                    (it.normalName() == "enclosure" && it.attr("type").startsWith("image/"))
+            }?.attr("url")?.takeIf { it.isNotBlank() }
+                ?: row.children().firstOrNull {
+                    atom && it.normalName() == "link" && it.attr("rel") == "enclosure" &&
+                        it.attr("type").startsWith("image/")
+                }?.attr("href")?.takeIf { it.isNotBlank() }
+                ?: html.selectFirst("img[src]")?.attr("src")
             buildJsonObject {
                 put("id", text(if (atom) "id" else "guid").ifBlank { link })
                 put("title", text("title"))
                 put("url", link)
-                put("summary", Jsoup.parseBodyFragment(description).text())
+                put("summary", html.text())
+                image?.let { put("image", it) }
             }
         })
     }

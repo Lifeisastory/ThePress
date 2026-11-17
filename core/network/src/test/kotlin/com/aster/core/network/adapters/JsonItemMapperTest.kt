@@ -29,6 +29,29 @@ class JsonItemMapperTest {
         mapper.map("test", Json.parseToJsonElement(text), mapping, baseUrl)
 
     @Test
+    fun optionalImagesResolveRelativeUrlsAndIgnoreMalformedValues() {
+        val images = listOf(
+            "\"/image.jpg\"" to "https://example.com/image.jpg",
+            "\"//cdn.example.com/image.jpg\"" to "https://cdn.example.com/image.jpg",
+            "\"http://i2.hdslb.com/a.jpg\"" to "https://i2.hdslb.com/a.jpg",
+            "\"javascript:alert(1)\"" to null,
+            "\"data:image/png;base64,a\"" to null,
+            "\"\"" to null, "null" to null, "{}" to null, "42" to null
+        )
+        images.forEach { (image, expected) ->
+            val result = map(
+                """{"items":[{"id":"1","title":"标题","url":"/1","image":$image}]}""",
+                rule.copy(imagePath = JsonPath("image"))
+            )
+            assertEquals(expected, result.single().imageUrl)
+        }
+        assertEquals(null, map(
+            """{"items":[{"id":"1","title":"标题","url":"/1"}]}""",
+            rule.copy(imagePath = JsonPath("image"))
+        ).single().imageUrl)
+    }
+
+    @Test
     fun mapsNumericIdsRelativeLinksAndOptionalSummary() {
         val items = map("""{"items":[{"id":90071992547409931234,"title":" 标题 ","url":"article","summary":null}]}""")
         assertEquals(

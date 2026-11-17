@@ -3,9 +3,9 @@ package com.aster.core.data.repository
 import com.aster.core.analytics.LogEvent
 import com.aster.core.analytics.LogLevel
 import com.aster.core.analytics.Logger
-import com.aster.core.data.model.NewsArticle
-import com.aster.core.data.model.NewsFailureReason
-import com.aster.core.data.model.NewsLoadResult
+import com.aster.core.model.NewsArticle
+import com.aster.core.model.NewsFailureReason
+import com.aster.core.model.NewsLoadResult
 import com.aster.core.network.NetworkClient
 import com.aster.core.network.sources.BuiltInSources
 import java.net.UnknownHostException

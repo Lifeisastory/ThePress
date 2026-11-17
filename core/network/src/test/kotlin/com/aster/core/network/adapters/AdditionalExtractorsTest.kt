@@ -66,6 +66,26 @@ class AdditionalExtractorsTest {
     }
 
     @Test
+    fun feedImagesUseMediaEnclosuresAndDescriptionFallback() {
+        val fragments = listOf(
+            """<media:thumbnail url="/thumb.jpg"/>""" to "/thumb.jpg",
+            """<enclosure type="image/jpeg" url="/photo.jpg"/>""" to "/photo.jpg",
+            """<media:content medium="image" url="/media.jpg"/>""" to "/media.jpg",
+            """<description><![CDATA[文字<img src="/inline.jpg"/>]]></description>""" to "/inline.jpg"
+        )
+        fragments.forEach { (fragment, expected) ->
+            val rows = FeedExtractor.extract(payload(
+                """<rss xmlns:media="http://search.yahoo.com/mrss/"><channel><item><title>图片</title><link>/1</link>$fragment</item></channel></rss>"""
+            ), Json)
+            assertEquals(expected, rows.single().jsonObject.getValue("image").jsonPrimitive.content)
+        }
+        val atom = FeedExtractor.extract(payload(
+            """<feed><entry><id>1</id><title>图片</title><link href="/1"/><link rel="enclosure" type="image/png" href="/atom.png"/></entry></feed>"""
+        ), Json)
+        assertEquals("/atom.png", atom.single().jsonObject.getValue("image").jsonPrimitive.content)
+    }
+
+    @Test
     fun feedRejectsChallengePagesAndExternalEntities() {
         listOf("<html>challenge</html>", "<!DOCTYPE rss [<!ENTITY x SYSTEM 'file:///secret'>]><rss><channel/></rss>").forEach {
             assertThrows(AdapterException::class.java) { FeedExtractor.extract(payload(it), Json) }

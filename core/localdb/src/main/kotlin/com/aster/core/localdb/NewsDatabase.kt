@@ -2,6 +2,7 @@ package com.aster.core.localdb
 
 import android.content.Context
 import androidx.room.Database
+import androidx.room.AutoMigration
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.aster.core.localdb.dto.NewsCacheDao
@@ -10,7 +11,8 @@ import com.aster.core.localdb.entity.NewsCacheEntity
 
 @Database(
     entities = [NewsCacheEntity::class, CachedNewsArticleEntity::class],
-    version = 1,
+    version = 2,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
     exportSchema = true
 )
 abstract class NewsDatabase : RoomDatabase() {

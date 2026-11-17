@@ -67,6 +67,7 @@ internal object TencentVideoSources {
             titlePath = JsonPath("params.title"),
             url = UrlMapping.Template("https://v.qq.com/x/cover/{id}.html"),
             summaryPath = JsonPath("params.sub_title"),
+            imagePath = JsonPath("params.image_url"),
             requiredRootValues = listOf(JsonFieldEquals(JsonPath("ret"), JsonPrimitive(0))),
             allowEmpty = false
         )

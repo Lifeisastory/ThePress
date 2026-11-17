@@ -8,9 +8,19 @@ import androidx.room.Upsert
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.NewsCache
 import com.aster.core.localdb.entity.NewsCacheEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class NewsCacheDao {
+    /** pattern 已转义；空来源表示查询所有来源，榜单内始终保留 position 顺序 */
+    @Query("""
+        SELECT * FROM cached_news_articles
+        WHERE (:sourceId IS NULL OR sourceId = :sourceId)
+          AND (title LIKE :pattern ESCAPE '\' OR COALESCE(summary, '') LIKE :pattern ESCAPE '\')
+        ORDER BY position, sourceId
+    """)
+    abstract fun search(sourceId: String?, pattern: String): Flow<List<CachedNewsArticleEntity>>
+
     @Query("SELECT * FROM news_cache WHERE sourceId = :sourceId")
     protected abstract suspend fun metadata(sourceId: String): NewsCacheEntity?
 

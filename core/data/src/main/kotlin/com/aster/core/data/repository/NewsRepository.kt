@@ -4,10 +4,10 @@ import com.aster.core.analytics.LogEvent
 import com.aster.core.analytics.LogLevel
 import com.aster.core.analytics.Logger
 import com.aster.core.analytics.NoOpLogger
-import com.aster.core.data.model.NewsArticle
-import com.aster.core.data.model.NewsFailureReason
-import com.aster.core.data.model.NewsLoadResult
-import com.aster.core.data.model.NewsSource
+import com.aster.core.model.NewsArticle
+import com.aster.core.model.NewsFailureReason
+import com.aster.core.model.NewsLoadResult
+import com.aster.core.model.NewsSource
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.NewsCache
 import com.aster.core.localdb.dto.NewsCacheDao
@@ -20,6 +20,8 @@ import com.aster.core.network.model.NetworkResult
 import com.aster.core.network.model.SourceDefinition
 import com.aster.core.network.sources.BuiltInSources
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -36,6 +38,23 @@ class NewsRepository(
     private val sourceLocks = definitions.associate { it.id to Mutex() }
     val sources: List<NewsSource> = definitions.map { NewsSource(it.id, it.name) }
 
+    /** 首屏和断网时也能读取过期快照；有效期只决定 fetch 是否需要联网 */
+    suspend fun readCached(sourceId: String): List<NewsArticle>? =
+        accessCache(sourceId) { cacheDao.read(sourceId)?.articles?.map { it.toArticle() } }
+
+    fun search(query: String, sourceId: String?): Flow<List<NewsArticle>> {
+        val escaped = query.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        return cacheDao.search(sourceId, "%$escaped%").map { rows ->
+            val sourceOrder = sources.mapIndexed { index, source -> source.id to index }.toMap()
+            rows.filter { it.sourceId in sourceOrder }
+                .sortedWith(compareBy<CachedNewsArticleEntity> { it.position }.thenBy { sourceOrder[it.sourceId] })
+                .map { it.toArticle() }
+        }
+    }
+
+    private fun CachedNewsArticleEntity.toArticle() =
+        NewsArticle(sourceId, id, title, url, summary, imageUrl)
+
     suspend fun fetch(sourceId: String): NewsLoadResult {
         val lock = sourceLocks[sourceId] ?: return fetchFromNetwork(sourceId)
         // 同一来源的并发调用在锁内重新检查缓存，不同来源仍可并行请求
@@ -51,7 +70,7 @@ class NewsRepository(
             if (cached?.second == true) {
                 val cache = checkNotNull(cached.first)
                 NewsLoadResult.Success(cache.articles.map {
-                    NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary)
+                    it.toArticle()
                 })
             } else {
                 fetchFromNetwork(sourceId)
@@ -66,13 +85,13 @@ class NewsRepository(
 
     private suspend fun loadFromNetwork(sourceId: String): NewsLoadResult = when (val result = adapters.fetch(sourceId)) {
         is NetworkResult.Success -> {
-            val articles = result.data.map { NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary) }
+            val articles = result.data.map { NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary, it.imageUrl) }
             accessCache(sourceId) {
                 requestLogging.trace(sourceId, "LOCAL_DATABASE", "WRITE", describe = { articles.asLogResponse() }) {
                     cacheDao.replace(NewsCache(
                         metadata = NewsCacheEntity(sourceId, currentTimeMillis()),
                         articles = articles.mapIndexed { position, article ->
-                            CachedNewsArticleEntity(sourceId, position, article.id, article.title, article.url, article.summary)
+                            CachedNewsArticleEntity(sourceId, position, article.id, article.title, article.url, article.summary, article.imageUrl)
                         }
                     ))
                 }

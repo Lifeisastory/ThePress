@@ -1,131 +1,134 @@
 package com.aster.feature.home.impl
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.aster.core.data.model.NewsArticle
-import com.aster.core.data.model.NewsFailureReason
-import com.aster.core.data.model.NewsLoadResult
+import com.aster.core.model.NewsFailureReason
+import com.aster.core.model.NewsLoadResult
+import com.aster.core.ui.NewsArticleCard
 import com.aster.feature.home.impl.model.HomeUiState
-import com.aster.feature.home.impl.model.SourceFeedUiState
 
-internal fun LazyListScope.homeFeedItems(
+@Composable
+internal fun HomeFeed(
     state: HomeUiState,
+    contentPadding: PaddingValues,
+    onRefreshAll: () -> Unit,
     onRefreshSource: (String) -> Unit,
-    onOpenArticle: (String) -> Unit
+    onOpenArticle: (String) -> Unit,
+    onRetrySearch: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    items(state.feeds, key = { "source:${it.source.id}" }) { feed ->
-        SourceStatusCard(feed, onRefresh = { onRefreshSource(feed.source.id) })
-    }
-    // 交替展示两个榜单，保留各自顺序，让首屏附近就能看到两个来源的内容
-    val articles = buildList {
-        repeat(state.feeds.maxOfOrNull { it.articles.size } ?: 0) { index ->
-            state.feeds.forEach { feed ->
-                feed.articles.getOrNull(index)?.let { add(feed.source to it) }
+    val savedLists = rememberSaveableStateHolder()
+    val sourceKey = state.selectedSourceId ?: "all"
+    // 普通浏览与搜索各存一份位置，清空搜索后恢复原列表。
+    savedLists.SaveableStateProvider("$sourceKey:${state.isSearchMode}") {
+        val listState = rememberLazyListState()
+        LaunchedEffect(state.query) {
+            if (state.isSearchMode) listState.scrollToItem(0)
+        }
+        val articles = state.visibleArticles
+        LazyColumn(
+            state = listState,
+            modifier = modifier.fillMaxSize().testTag("home_feed"),
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "status") {
+                if (state.isSearchMode) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            stringResource(R.string.home_search_count, articles.size),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (state.isSearching) LinearProgressIndicator(Modifier.fillMaxWidth())
+                        if (state.searchFailed) {
+                            Text(stringResource(R.string.home_search_failed), color = MaterialTheme.colorScheme.error)
+                            TextButton(onClick = onRetrySearch) { Text(stringResource(R.string.home_retry)) }
+                        } else if (!state.isSearching && articles.isEmpty()) {
+                            Text(stringResource(R.string.home_search_empty))
+                        }
+                    }
+                } else {
+                    FeedStatus(state, onRefreshAll, onRefreshSource)
+                }
+            }
+            items(articles, key = { "article:${it.sourceId}:${it.id}" }) { article ->
+                NewsArticleCard(
+                    article = article,
+                    source = state.feeds.first { it.source.id == article.sourceId }.source,
+                    onClick = { onOpenArticle(article.url) },
+                    modifier = Modifier.testTag("home_article_${article.sourceId}_${article.id}")
+                )
             }
         }
-    }
-    items(articles, key = { (source, article) -> "article:${source.id}:${article.id}" }) { (source, article) ->
-        NewsArticleCard(article, source.name, onOpen = { onOpenArticle(article.url) })
     }
 }
 
 @Composable
-private fun SourceStatusCard(feed: SourceFeedUiState, onRefresh: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("home_source_${feed.source.id}")
-            .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+private fun FeedStatus(
+    state: HomeUiState,
+    onRefreshAll: () -> Unit,
+    onRefreshSource: (String) -> Unit
+) {
+    val feeds = state.visibleFeeds
+    val loading = feeds.any { it.isLoading }
+    val failures = feeds.filter { it.error != null }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = feed.source.name,
+                stringResource(R.string.home_article_count, state.visibleArticles.size),
                 modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            TextButton(onClick = onRefresh, enabled = !feed.isLoading) {
-                Text(stringResource(if (feed.error == null) R.string.home_refresh_source else R.string.home_retry))
+            TextButton(
+                onClick = {
+                    state.selectedSourceId?.let(onRefreshSource) ?: onRefreshAll()
+                },
+                enabled = !loading,
+                modifier = Modifier.testTag("home_refresh")
+            ) {
+                Text(stringResource(if (state.selectedSourceId == null) R.string.home_refresh_all else R.string.home_refresh_source))
             }
         }
-        Text(
-            text = when {
-                feed.isLoading -> stringResource(R.string.home_loading)
-                feed.error != null && feed.articles.isNotEmpty() ->
-                    stringResource(R.string.home_kept_articles, feed.articles.size)
-                feed.error != null -> stringResource(R.string.home_load_failed)
-                feed.articles.isEmpty() -> stringResource(R.string.home_empty)
-                else -> stringResource(R.string.home_article_count, feed.articles.size)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        if (feed.isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        feed.error?.let { error ->
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.selectedSourceId != null) {
+            val feed = feeds.firstOrNull()
+            feed?.error?.let { error ->
+                Text(failureMessage(error), color = MaterialTheme.colorScheme.error)
+                if (feed.articles.isNotEmpty()) Text(stringResource(R.string.home_kept_articles, feed.articles.size))
+                TextButton(onClick = { onRefreshSource(feed.source.id) }, enabled = !feed.isLoading) {
+                    Text(stringResource(R.string.home_retry))
+                }
+            }
+        } else if (failures.isNotEmpty()) {
             Text(
-                text = failureMessage(error),
-                style = MaterialTheme.typography.bodyMedium,
+                stringResource(R.string.home_failed_sources, failures.size),
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error
             )
         }
-    }
-}
-
-@Composable
-private fun NewsArticleCard(article: NewsArticle, sourceName: String, onOpen: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(
-            text = sourceName,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = article.title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        article.summary?.let { summary ->
-            Text(
-                text = summary,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        TextButton(onClick = onOpen, modifier = Modifier.align(Alignment.End)) {
-            Text(stringResource(R.string.home_open_article))
+        if (!loading && state.visibleArticles.isEmpty() && failures.isEmpty()) {
+            Text(stringResource(R.string.home_empty))
         }
     }
 }

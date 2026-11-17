@@ -27,7 +27,8 @@ data class CachedNewsArticleEntity(
     val id: String,
     val title: String,
     val url: String,
-    val summary: String?
+    val summary: String?,
+    val imageUrl: String? = null
 )
 
 data class NewsCache(

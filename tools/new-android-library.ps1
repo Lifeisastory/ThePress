@@ -1,11 +1,11 @@
-#Requires -Version 7.0
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
 创建包含 namespace 包目录的 Kotlin Android Library 模块
 .EXAMPLE
-pwsh -File ./tools/new-android-library.ps1 -ModulePath :core:reader_ui -Namespace com.aster.core.reader_ui -Compose
+powershell -File ./tools/new-android-library.ps1 -ModulePath :core:reader_ui -Namespace com.aster.core.reader_ui -Compose
 .EXAMPLE
-pwsh -File ./tools/new-android-library.ps1 -ModulePath :core:data -Namespace com.aster.core.data
+powershell -File ./tools/new-android-library.ps1 -ModulePath :core:data -Namespace com.aster.core.data
 #>
 [CmdletBinding()]
 param(
@@ -100,5 +100,5 @@ $newLine = if ($settingsContent.Contains("`r`n")) { "`r`n" } else { "`n" }
 $includeLine = 'include("' + $ModulePath + '")'
 [System.IO.File]::WriteAllText($settingsPath, $settingsContent.TrimEnd() + $newLine + $includeLine + $newLine)
 
-Write-Output "已创建 $ModulePath：$moduleDirectory"
+Write-Output "已创建 ${ModulePath}：$moduleDirectory"
 Write-Output '请在 Android Studio 中执行 Sync Project with Gradle Files。'

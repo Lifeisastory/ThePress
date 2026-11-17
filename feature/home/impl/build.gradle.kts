@@ -26,9 +26,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.coroutines.core)
     implementation(project(":core:data"))
+    implementation(project(":core:model"))
+    implementation(project(":core:ui"))
     implementation(project(":feature:home:api"))
     implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

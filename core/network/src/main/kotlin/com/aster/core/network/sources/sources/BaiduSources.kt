@@ -27,6 +27,7 @@ internal object BaiduSources {
             titlePath = JsonPath("word"),
             url = UrlMapping.Field(JsonPath("rawUrl")),
             summaryPath = JsonPath("desc"),
+            imagePath = JsonPath("img"),
             excludedItems = listOf(JsonFieldEquals(JsonPath("isTop"), JsonPrimitive(true))),
             allowEmpty = false
         )

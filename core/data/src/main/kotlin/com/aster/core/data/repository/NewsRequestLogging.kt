@@ -4,8 +4,8 @@ import com.aster.core.analytics.LogEvent
 import com.aster.core.analytics.LogLevel
 import com.aster.core.analytics.Logger
 import com.aster.core.analytics.NoOpLogger
-import com.aster.core.data.model.NewsArticle
-import com.aster.core.data.model.NewsLoadResult
+import com.aster.core.model.NewsArticle
+import com.aster.core.model.NewsLoadResult
 import com.aster.core.localdb.entity.NewsCache
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
@@ -79,6 +79,7 @@ internal fun List<NewsArticle>.asLogResponse(outcome: String = "SUCCESS"): JsonO
         put("title", article.title)
         put("url", article.url)
         put("summary", article.summary?.let(::JsonPrimitive) ?: JsonNull)
+        put("imageUrl", article.imageUrl?.let(::JsonPrimitive) ?: JsonNull)
     } }))
 }
 
@@ -94,7 +95,7 @@ internal fun NewsLoadResult.asLogResponse(): JsonObject = when (this) {
 internal fun NewsCache?.asLogResponse(fresh: Boolean): JsonObject = if (this == null) {
     buildJsonObject { put("outcome", "MISS") }
 } else {
-    val articles = articles.map { NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary) }
+    val articles = articles.map { NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary, it.imageUrl) }
     JsonObject(articles.asLogResponse(if (fresh) "HIT" else "EXPIRED") +
         ("fetchedAt" to JsonPrimitive(metadata.fetchedAt)))
 }

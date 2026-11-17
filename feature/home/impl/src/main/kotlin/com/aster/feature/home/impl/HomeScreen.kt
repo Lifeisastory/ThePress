@@ -2,14 +2,18 @@ package com.aster.feature.home.impl
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -17,10 +21,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,6 +44,9 @@ internal fun HomeRoute(repository: NewsRepository, contentPadding: PaddingValues
         contentPadding = contentPadding,
         onRefreshAll = viewModel::refreshAll,
         onRefreshSource = viewModel::refresh,
+        onQueryChange = viewModel::setQuery,
+        onSelectSource = viewModel::selectSource,
+        onRetrySearch = viewModel::retrySearch,
         onOpenArticle = { url ->
             try {
                 uriHandler.openUri(url)
@@ -50,6 +57,7 @@ internal fun HomeRoute(repository: NewsRepository, contentPadding: PaddingValues
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(
     state: HomeUiState,
@@ -57,41 +65,65 @@ internal fun HomeScreen(
     onRefreshAll: () -> Unit,
     onRefreshSource: (String) -> Unit,
     onOpenArticle: (String) -> Unit,
+    onQueryChange: (String) -> Unit,
+    onSelectSource: (String?) -> Unit,
+    onRetrySearch: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier.fillMaxSize().testTag("home_screen")) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().testTag("home_feed"),
-            contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+    val direction = LocalLayoutDirection.current
+    val start = contentPadding.calculateStartPadding(direction)
+    val end = contentPadding.calculateEndPadding(direction)
+    val selectedTab = state.feeds.indexOfFirst { it.source.id == state.selectedSourceId } + 1
+    Column(
+        modifier.fillMaxSize().testTag("home_screen").padding(top = contentPadding.calculateTopPadding())
+    ) {
+        Column(
+            Modifier.padding(start = start, end = end, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item(key = "home_header") {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = stringResource(R.string.home_brand),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = stringResource(R.string.home_title),
-                        modifier = Modifier.testTag("page_title"),
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = stringResource(R.string.home_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    TextButton(onClick = onRefreshAll, enabled = !state.isRefreshing) {
-                        Text(stringResource(R.string.home_refresh_all))
-                    }
-                    Spacer(Modifier.height(4.dp))
-                }
-            }
-            homeFeedItems(state, onRefreshSource, onOpenArticle)
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = onQueryChange,
+                modifier = Modifier.fillMaxWidth().testTag("home_search"),
+                placeholder = { Text(stringResource(R.string.home_search_hint)) },
+                singleLine = true,
+                shape = MaterialTheme.shapes.extraLarge,
+                trailingIcon = if (state.query.isNotEmpty()) {
+                    { TextButton(onClick = { onQueryChange("") }) { Text(stringResource(R.string.home_clear_search)) } }
+                } else null
+            )
         }
+        PrimaryScrollableTabRow(
+            selectedTabIndex = selectedTab,
+            modifier = Modifier.fillMaxWidth().testTag("home_source_tabs"),
+            edgePadding = start
+        ) {
+            Tab(
+                selected = state.selectedSourceId == null,
+                onClick = { onSelectSource(null) },
+                modifier = Modifier.testTag("home_tab_all"),
+                text = { Text(stringResource(R.string.home_all_sources)) }
+            )
+            state.feeds.forEach { feed ->
+                Tab(
+                    selected = state.selectedSourceId == feed.source.id,
+                    onClick = { onSelectSource(feed.source.id) },
+                    modifier = Modifier.testTag("home_tab_${feed.source.id}"),
+                    text = { Text(feed.source.name, maxLines = 1) }
+                )
+            }
+        }
+        HomeFeed(
+            state = state,
+            contentPadding = PaddingValues(
+                start = start, end = end, top = 16.dp, bottom = contentPadding.calculateBottomPadding()
+            ),
+            onRefreshAll = onRefreshAll,
+            onRefreshSource = onRefreshSource,
+            onOpenArticle = onOpenArticle,
+            onRetrySearch = onRetrySearch,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -99,6 +131,6 @@ internal fun HomeScreen(
 @Composable
 private fun HomeScreenPreview() {
     MaterialTheme {
-        HomeScreen(HomeUiState(), PaddingValues(24.dp), {}, {}, {})
+        HomeScreen(HomeUiState(), PaddingValues(24.dp), {}, {}, {}, {}, {}, {})
     }
 }

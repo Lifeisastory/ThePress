@@ -38,7 +38,17 @@ class JsonItemMapper {
                         ?: fail("第 $index 条记录的链接无效")
                 }
             }
-            SourceItem(sourceId, id, title, url, rule.summaryPath?.let { text(item, it, false, index) })
+            // 配图是可选增强，字段异常不得使整条资讯或整个来源失败
+            val image = (rule.imagePath?.read(item) as? JsonPrimitive)
+                ?.takeIf { it.isString }?.content?.trim()?.takeIf { it.isNotEmpty() }
+                ?.let { baseUrl.resolve(it) }
+                ?.let { imageUrl ->
+                    // 已验证 B 站图片 CDN 支持 HTTPS，避免 Android 明文请求限制
+                    if (imageUrl.scheme == "http" && imageUrl.host.endsWith(".hdslb.com")) {
+                        imageUrl.newBuilder().scheme("https").build()
+                    } else imageUrl
+                }?.toString()
+            SourceItem(sourceId, id, title, url, rule.summaryPath?.let { text(item, it, false, index) }, image)
         }.distinctBy { it.id }
         if (!rule.allowEmpty && result.isEmpty()) fail("来源不允许返回空列表")
         return result

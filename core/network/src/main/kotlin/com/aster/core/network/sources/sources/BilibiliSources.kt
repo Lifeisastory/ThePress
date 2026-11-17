@@ -12,12 +12,12 @@ internal object BilibiliSources {
     val hotVideo = SourceDefaults.json(
         "bilibili-hot-video", "哔哩哔哩·热门视频",
         "https://api.bilibili.com/x/web-interface/popular",
-        SourceDefaults.mapping(items = "data.list", id = "bvid", summary = "desc", template = "https://www.bilibili.com/video/{id}")
+        SourceDefaults.mapping(items = "data.list", id = "bvid", summary = "desc", image = "pic", template = "https://www.bilibili.com/video/{id}")
     )
 
     val ranking = SourceDefaults.json(
         "bilibili-ranking", "哔哩哔哩·排行榜",
         "https://api.bilibili.com/x/web-interface/ranking/v2",
-        SourceDefaults.mapping(items = "data.list", id = "bvid", summary = "desc", template = "https://www.bilibili.com/video/{id}")
+        SourceDefaults.mapping(items = "data.list", id = "bvid", summary = "desc", image = "pic", template = "https://www.bilibili.com/video/{id}")
     )
 }

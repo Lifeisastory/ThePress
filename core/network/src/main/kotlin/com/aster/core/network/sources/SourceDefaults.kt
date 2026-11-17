@@ -24,11 +24,12 @@ internal object SourceDefaults {
 
     fun mapping(
         items: String = "", id: String = "id", title: String = "title",
-        url: String = "url", template: String? = null, summary: String? = null
+        url: String = "url", template: String? = null, summary: String? = null,
+        image: String? = null
     ) = ItemMapping(
         JsonPath(items), JsonPath(id), JsonPath(title),
         template?.let { UrlMapping.Template(it) } ?: UrlMapping.Field(JsonPath(url)),
-        summary?.let { JsonPath(it) }, allowEmpty = false
+        summary?.let { JsonPath(it) }, allowEmpty = false, imagePath = image?.let { JsonPath(it) }
     )
 
     fun json(
@@ -39,17 +40,18 @@ internal object SourceDefaults {
     fun html(
         id: String, name: String, endpoint: String, rows: String,
         title: HtmlField, link: HtmlField, summary: HtmlField? = null,
-        itemId: HtmlField = link
+        itemId: HtmlField = link, image: HtmlField? = null
     ): SourceDefinition = SourceDefinition(
-        id, name, request(endpoint), mapping(summary = summary?.let { "summary" }),
+        id, name, request(endpoint), mapping(summary = summary?.let { "summary" }, image = image?.let { "image" }),
         HtmlListExtractor(rows, buildMap {
             put("id", itemId)
             put("title", title)
             put("url", link)
             if (summary != null) put("summary", summary)
+            if (image != null) put("image", image)
         })
     )
 
     fun feed(id: String, name: String, endpoint: String) =
-        SourceDefinition(id, name, request(endpoint), mapping(summary = "summary"), FeedExtractor)
+        SourceDefinition(id, name, request(endpoint), mapping(summary = "summary", image = "image"), FeedExtractor)
 }

@@ -1,8 +1,8 @@
 package com.aster.feature.home.impl.model
 
-import com.aster.core.data.model.NewsArticle
-import com.aster.core.data.model.NewsLoadResult
-import com.aster.core.data.model.NewsSource
+import com.aster.core.model.NewsArticle
+import com.aster.core.model.NewsLoadResult
+import com.aster.core.model.NewsSource
 
 internal data class SourceFeedUiState(
     val source: NewsSource,

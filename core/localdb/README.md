@@ -10,7 +10,11 @@
 
 网络失败不会覆盖缓存或更新有效期，仓库返回原有失败结果；不会用过期数据冒充成功。界面仍可保留此前已展示的内容。同一仓库内同一来源的并发请求串行检查缓存，不同来源可以并行加载。数据库读写异常通过 `core:analytics` 的 `Logger` 提交 `cache_failed` 事件，允许网络结果继续返回；协程取消正常向上传递。
 
-当前 schema 版本为 1，导出的 Room schema 位于 `schemas/`。后续修改表结构时应增加版本并提供迁移。
+当前 schema 版本为 2，使用 Room 自动迁移从版本 1 添加可空的 `imageUrl`，保留已有缓存。导出的 Room schema 位于 `schemas/`。
+
+`NewsRepository.readCached` 用于首页启动时恢复快照，不受十分钟有效期限制；随后调用 `fetch` 更新。手动刷新也遵守相同有效期，不强制绕过缓存。
+
+`NewsCacheDao.search` 返回 Room Flow，按来源（可选）、标题和摘要查询当前快照。仓库转义 LIKE 通配符并提供本地搜索，不触发网络请求，缓存写入后结果自动更新。搜索包含仍存于数据库的过期快照，但不保存被新榜单替换的历史内容。
 
 仓库通过 `core:analytics` 为缓存读取和写入记录开始/完成日志，标记 `origin=LOCAL_DATABASE` 和 `operation=READ/WRITE`。读取完成区分命中、未命中和过期，并输出已读取的结构化文章列表；写入成功输出已写入列表。网络加载记录为 `origin=NETWORK`，所有请求使用各自的 `requestId` 配对。详见 [统一日志](../analytics/README.md)。
 

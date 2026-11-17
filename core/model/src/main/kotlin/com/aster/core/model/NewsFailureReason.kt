@@ -1,4 +1,4 @@
-package com.aster.core.data.model
+package com.aster.core.model
 
 enum class NewsFailureReason {
     CONNECTION,
