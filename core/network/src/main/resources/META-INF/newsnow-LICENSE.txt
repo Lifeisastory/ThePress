@@ -1,7 +1,8 @@
 Source configurations adapted from newsnext/newsnow
 https://github.com/newsnext/newsnow/tree/5da836c49c327f2c352216c5cbb4dea1abd9fcd3
-Files: server/sources/qqvideo.ts, server/sources/baidu.ts
-ThePress changes: Kotlin request definitions and declarative item mappings.
+Files: server/sources/*, server/utils/source.ts, server/utils/rss2json.ts
+ThePress changes: Kotlin source definitions, composable HTTP request strategies,
+HTML/RSS/JSON extraction, item mappings, and updated selectors for current pages.
 
 MIT License
 

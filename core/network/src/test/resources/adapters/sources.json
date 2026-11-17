@@ -1,0 +1,483 @@
+{
+  "baidu": {
+    "bodies": [
+      "<!doctype html>\n<html><head><title>人工构造的热榜样本</title></head><body>\n<!--s-data:\n{\"data\":{\"cards\":[{\"content\":[\n  {\"isTop\":true,\"word\":\"置顶条目\",\"rawUrl\":\"https://example.com/pinned\"},\n  {\"word\":\"测试新闻\",\"rawUrl\":\"https://example.com/news/1\",\"desc\":\"新闻摘要\"},\n  {\"word\":\"重复条目\",\"rawUrl\":\"https://example.com/news/1\"},\n  {\"word\":\"另一条新闻\",\"rawUrl\":\"https://example.com/news/2\"}\n]}]}}\n-->\n</body></html>\n"
+    ],
+    "id": "https://example.com/news/1",
+    "title": "测试新闻",
+    "url": "https://example.com/news/1",
+    "summary": "新闻摘要"
+  },
+  "qqvideo-tv-hotsearch": {
+    "bodies": [
+      "{\n  \"ret\": 0,\n  \"data\": {\n    \"card\": {\n      \"children_list\": {\n        \"list\": {\n          \"cards\": [\n            {\"id\": \"test-cid-1\", \"params\": {\"title\": \"测试剧集一\", \"sub_title\": \"剧集简介\"}},\n            {\"id\": \"test-cid-2\", \"params\": {\"title\": \"测试剧集二\"}}\n          ]\n        }\n      }\n    }\n  }\n}\n"
+    ],
+    "id": "test-cid-1",
+    "title": "测试剧集一",
+    "url": "https://v.qq.com/x/cover/test-cid-1.html",
+    "summary": "剧集简介"
+  },
+  "aihot": {
+    "bodies": [
+      "<rss version=\"2.0\"><channel><title>Feed</title><item><guid>entry-1</guid><title>测试新闻</title><link>https://example.com/article</link><description><![CDATA[<p>测试新闻 &amp; 测试新闻</p>]]></description></item></channel></rss>"
+    ],
+    "id": "entry-1",
+    "title": "测试新闻",
+    "url": "https://example.com/article",
+    "summary": "测试新闻 & 测试新闻"
+  },
+  "kaopu": {
+    "bodies": [
+      "<rss version=\"2.0\"><channel><title>Feed</title><item><guid>entry-1</guid><title>测试新闻</title><link>https://example.com/article</link><description><![CDATA[<p>测试新闻 &amp; 测试新闻</p>]]></description></item></channel></rss>"
+    ],
+    "id": "entry-1",
+    "title": "测试新闻",
+    "url": "https://example.com/article",
+    "summary": "测试新闻 & 测试新闻"
+  },
+  "freebuf": {
+    "bodies": [
+      "<rss version=\"2.0\"><channel><title>Feed</title><item><guid>entry-1</guid><title>测试新闻</title><link>https://example.com/article</link><description><![CDATA[<p>测试新闻 &amp; 测试新闻</p>]]></description></item></channel></rss>"
+    ],
+    "id": "entry-1",
+    "title": "测试新闻",
+    "url": "https://example.com/article",
+    "summary": "测试新闻 & 测试新闻"
+  },
+  "solidot": {
+    "bodies": [
+      "<rss version=\"2.0\"><channel><title>Feed</title><item><guid>entry-1</guid><title>测试新闻</title><link>https://example.com/article</link><description><![CDATA[<p>测试新闻 &amp; 测试新闻</p>]]></description></item></channel></rss>"
+    ],
+    "id": "entry-1",
+    "title": "测试新闻",
+    "url": "https://example.com/article",
+    "summary": "测试新闻 & 测试新闻"
+  },
+  "chongbuluo-latest": {
+    "bodies": [
+      "<rss version=\"2.0\"><channel><title>Feed</title><item><guid>entry-1</guid><title>测试新闻</title><link>https://example.com/article</link><description><![CDATA[<p>测试新闻 &amp; 测试新闻</p>]]></description></item></channel></rss>"
+    ],
+    "id": "entry-1",
+    "title": "测试新闻",
+    "url": "https://example.com/article",
+    "summary": "测试新闻 & 测试新闻"
+  },
+  "pcbeta-windows11": {
+    "bodies": [
+      "<rss version=\"2.0\"><channel><title>Feed</title><item><guid>entry-1</guid><title>测试新闻</title><link>https://example.com/article</link><description><![CDATA[<p>测试新闻 &amp; 测试新闻</p>]]></description></item></channel></rss>"
+    ],
+    "id": "entry-1",
+    "title": "测试新闻",
+    "url": "https://example.com/article",
+    "summary": "测试新闻 & 测试新闻"
+  },
+  "pcbeta-windows": {
+    "bodies": [
+      "<rss version=\"2.0\"><channel><title>Feed</title><item><guid>entry-1</guid><title>测试新闻</title><link>https://example.com/article</link><description><![CDATA[<p>测试新闻 &amp; 测试新闻</p>]]></description></item></channel></rss>"
+    ],
+    "id": "entry-1",
+    "title": "测试新闻",
+    "url": "https://example.com/article",
+    "summary": "测试新闻 & 测试新闻"
+  },
+  "producthunt": {
+    "bodies": [
+      "<rss version=\"2.0\"><channel><title>Feed</title><item><guid>entry-1</guid><title>测试新闻</title><link>https://example.com/article</link><description><![CDATA[<p>测试新闻 &amp; 测试新闻</p>]]></description></item></channel></rss>"
+    ],
+    "id": "entry-1",
+    "title": "测试新闻",
+    "url": "https://example.com/article",
+    "summary": "测试新闻 & 测试新闻"
+  },
+  "bilibili-hot-search": {
+    "bodies": [
+      "{\"list\": [{\"keyword\": \"Kotlin & Java\", \"show_name\": \"测试新闻\"}]}"
+    ],
+    "id": "Kotlin & Java",
+    "title": "测试新闻",
+    "url": "https://search.bilibili.com/all?keyword=Kotlin%20%26%20Java"
+  },
+  "bilibili-hot-video": {
+    "bodies": [
+      "{\"code\": 0, \"data\": {\"list\": [{\"bvid\": \"BV123\", \"title\": \"测试新闻\", \"desc\": \"测试新闻\"}]}}"
+    ],
+    "id": "BV123",
+    "title": "测试新闻",
+    "url": "https://www.bilibili.com/video/BV123",
+    "summary": "测试新闻"
+  },
+  "bilibili-ranking": {
+    "bodies": [
+      "{\"code\": 0, \"data\": {\"list\": [{\"bvid\": \"BV123\", \"title\": \"测试新闻\", \"desc\": \"测试新闻\"}]}}"
+    ],
+    "id": "BV123",
+    "title": "测试新闻",
+    "url": "https://www.bilibili.com/video/BV123",
+    "summary": "测试新闻"
+  },
+  "douban": {
+    "bodies": [
+      "{\"items\": [{\"id\": \"100\", \"title\": \"测试新闻\", \"card_subtitle\": \"测试新闻\"}]}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://movie.douban.com/subject/100",
+    "summary": "测试新闻"
+  },
+  "iqiyi-hot-ranklist": {
+    "bodies": [
+      "{\"items\": [{\"video\": [{\"data\": [{\"entity_id\": 100, \"title\": \"测试新闻\", \"page_url\": \"https://www.iqiyi.com/v_100.html\", \"description\": \"测试新闻\"}]}]}]}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.iqiyi.com/v_100.html",
+    "summary": "测试新闻"
+  },
+  "juejin": {
+    "bodies": [
+      "{\"data\": [{\"content\": {\"content_id\": \"90071992547409931234\", \"title\": \"测试新闻\"}}]}"
+    ],
+    "id": "90071992547409931234",
+    "title": "测试新闻",
+    "url": "https://juejin.cn/post/90071992547409931234"
+  },
+  "tencent-hot": {
+    "bodies": [
+      "{\"data\": {\"tabs\": [{\"articleList\": [{\"id\": \"100\", \"title\": \"测试新闻\", \"link_info\": {\"url\": \"https://news.qq.com/rain/a/100\"}, \"desc\": \"测试新闻\"}]}]}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://news.qq.com/rain/a/100",
+    "summary": "测试新闻"
+  },
+  "thepaper": {
+    "bodies": [
+      "{\"data\": {\"hotNews\": [{\"contId\": \"100\", \"name\": \"测试新闻\"}]}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.thepaper.cn/newsDetail_forward_100"
+  },
+  "tieba": {
+    "bodies": [
+      "{\"data\": {\"bang_topic\": {\"topic_list\": [{\"topic_id\": 100, \"topic_name\": \"测试新闻\", \"topic_url\": \"https://tieba.baidu.com/hottopic/browse/hottopic?topic_id=100\"}]}}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://tieba.baidu.com/hottopic/browse/hottopic?topic_id=100"
+  },
+  "toutiao": {
+    "bodies": [
+      "{\"data\": [{\"ClusterIdStr\": \"100\", \"Title\": \"测试新闻\"}]}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.toutiao.com/trending/100/"
+  },
+  "zhihu": {
+    "bodies": [
+      "{\"data\": [{\"target\": {\"link\": {\"url\": \"https://www.zhihu.com/question/100\"}, \"title_area\": {\"text\": \"测试新闻\"}, \"excerpt_area\": {\"text\": \"测试新闻\"}}}]}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.zhihu.com/question/100",
+    "summary": "测试新闻"
+  },
+  "ifeng": {
+    "bodies": [
+      "<script>var  allData = {\"hotNews1\": [{\"url\": \"https://news.ifeng.com/c/100\", \"title\": \"测试新闻\"}]};</script>"
+    ],
+    "id": "https://news.ifeng.com/c/100",
+    "title": "测试新闻",
+    "url": "https://news.ifeng.com/c/100"
+  },
+  "linuxdo-hot": {
+    "bodies": [
+      "{\"topic_list\": {\"topics\": [{\"id\": 1, \"pinned\": true, \"visible\": true}, {\"id\": 100, \"title\": \"测试新闻\", \"visible\": true, \"archived\": false, \"pinned\": false}]}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://linux.do/t/topic/100"
+  },
+  "linuxdo-latest": {
+    "bodies": [
+      "{\"topic_list\": {\"topics\": [{\"id\": 1, \"pinned\": true, \"visible\": true}, {\"id\": 100, \"title\": \"测试新闻\", \"visible\": true, \"archived\": false, \"pinned\": false}]}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://linux.do/t/topic/100"
+  },
+  "sspai": {
+    "bodies": [
+      "{\"data\": [{\"id\": 100, \"title\": \"测试新闻\"}]}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://sspai.com/post/100"
+  },
+  "dongqiudi": {
+    "bodies": [
+      "{\"articles\": [{\"id\": 100, \"title\": \"测试新闻\"}]}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.dongqiudi.com/article/100"
+  },
+  "wallstreetcn-quick": {
+    "bodies": [
+      "{\"data\": {\"items\": [{\"id\": 100, \"title\": \"\", \"content_text\": \"测试新闻\", \"uri\": \"https://wallstreetcn.com/livenews/100\"}]}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://wallstreetcn.com/livenews/100"
+  },
+  "wallstreetcn-news": {
+    "bodies": [
+      "{\"data\": {\"items\": [{\"resource_type\": \"ad\"}, {\"resource_type\": \"article\", \"resource\": {\"id\": 100, \"title\": \"\", \"content_short\": \"测试新闻\", \"uri\": \"https://wallstreetcn.com/articles/100\"}}]}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://wallstreetcn.com/articles/100",
+    "summary": "测试新闻"
+  },
+  "wallstreetcn-hot": {
+    "bodies": [
+      "{\"data\": {\"day_items\": [{\"id\": 100, \"title\": \"测试新闻\", \"uri\": \"https://wallstreetcn.com/articles/100\"}]}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://wallstreetcn.com/articles/100"
+  },
+  "mktnews-flash": {
+    "bodies": [
+      "{\"data\": [{\"id\": 100, \"time\": \"2026-11-17T10:00:00Z\", \"data\": {\"content\": \"【测试新闻】详细内容\", \"title\": \"\"}}]}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://mktnews.net/flashDetail.html?id=100",
+    "summary": "【测试新闻】详细内容"
+  },
+  "nowcoder": {
+    "bodies": [
+      "{\"data\": {\"result\": [{\"id\": 1, \"type\": 99}, {\"id\": 1, \"uuid\": \"uuid-100\", \"title\": \"测试新闻\", \"type\": 74}, {\"id\": 100, \"title\": \"测试新闻\", \"type\": 0}]}}"
+    ],
+    "id": "uuid-100",
+    "title": "测试新闻",
+    "url": "https://www.nowcoder.com/feed/main/detail/uuid-100"
+  },
+  "jin10": {
+    "bodies": [
+      "var newest = [{\"id\": 0, \"channel\": [5], \"data\": {\"title\": \"过滤\"}}, {\"id\": 100, \"channel\": [1], \"data\": {\"content\": \"<b>【测试新闻】</b>摘要\"}}];;"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://flash.jin10.com/detail/100",
+    "summary": "摘要"
+  },
+  "v2ex-share": {
+    "bodies": [
+      "{\"items\": [{\"id\": \"100\", \"title\": \"测试新闻\", \"url\": \"https://www.v2ex.com/t/100\", \"date_published\": \"2026-11-17T10:00:00+08:00\"}]}",
+      "{\"items\": []}",
+      "{\"items\": []}",
+      "{\"items\": []}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.v2ex.com/t/100"
+  },
+  "cankaoxiaoxi": {
+    "bodies": [
+      "{\"list\": [{\"data\": {\"id\": \"100\", \"title\": \"测试新闻\", \"url\": \"https://china.cankaoxiaoxi.com/a/100\", \"publishTime\": \"2026-11-17 10:00:00\"}}]}",
+      "{\"list\": []}",
+      "{\"list\": []}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://china.cankaoxiaoxi.com/a/100"
+  },
+  "douyin": {
+    "bodies": [
+      "{\"data\": {\"word_list\": [{\"sentence_id\": 100, \"word\": \"测试新闻\"}]}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.douyin.com/hot/100"
+  },
+  "xueqiu-hotstock": {
+    "bodies": [
+      "{\"data\": {\"items\": [{\"ad\": 1}, {\"code\": \"SH600000\", \"name\": \"测试新闻\", \"ad\": 0}]}}"
+    ],
+    "id": "SH600000",
+    "title": "测试新闻",
+    "url": "https://xueqiu.com/s/SH600000"
+  },
+  "cls-telegraph": {
+    "bodies": [
+      "{\"data\": {\"roll_data\": [{\"is_ad\": 1}, {\"id\": 100, \"title\": \"\", \"brief\": \"测试新闻\"}]}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.cls.cn/detail/100"
+  },
+  "cls-depth": {
+    "bodies": [
+      "{\"data\": {\"depth_list\": [{\"id\": 100, \"title\": \"测试新闻\", \"ctime\": 100}]}}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.cls.cn/detail/100"
+  },
+  "cls-hot": {
+    "bodies": [
+      "{\"data\": [{\"id\": 100, \"brief\": \"测试新闻\"}]}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.cls.cn/detail/100"
+  },
+  "coolapk": {
+    "bodies": [
+      "{\"data\": [{\"id\": 100, \"message\": \"<p>测试新闻</p>\", \"url\": \"/feed/100\"}]}"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.coolapk.com/feed/100"
+  },
+  "kuaishou": {
+    "bodies": [
+      "<script>window.__APOLLO_STATE__ = {\"defaultClient\": {\"ROOT_QUERY\": {\"visionHotRank({\\\"page\\\":\\\"home\\\"})\": {\"id\": \"rank\"}}, \"rank\": {\"items\": [{\"id\": \"VisionHotRankItem:100\"}]}, \"VisionHotRankItem:100\": {\"name\": \"Kotlin & Java\"}}};</script>"
+    ],
+    "id": "100",
+    "title": "Kotlin & Java",
+    "url": "https://www.kuaishou.com/search/video?searchKey=Kotlin%20%26%20Java"
+  },
+  "gelonghui": {
+    "bodies": [
+      "<div class=\"article-content\"><div class=\"detail-right\"><a href=\"/news/100\"><h2>测试新闻</h2></a></div></div>"
+    ],
+    "id": "/news/100",
+    "title": "测试新闻",
+    "url": "https://www.gelonghui.com/news/100"
+  },
+  "ghxi": {
+    "bodies": [
+      "<div class=\"article-item\"><h3 class=\"article-item__title\"><a href=\"https://www.ghxi.com/100.html\">测试新闻</a></h3><p class=\"article-item__excerpt\">文章摘要</p></div>"
+    ],
+    "id": "https://www.ghxi.com/100.html",
+    "title": "测试新闻",
+    "url": "https://www.ghxi.com/100.html",
+    "summary": "文章摘要"
+  },
+  "github-trending-today": {
+    "bodies": [
+      "<main><div class=\"Box\"><div data-hpc><article><h2><a href=\"/owner/repo\">测试新闻</a></h2></article></div></div></main>"
+    ],
+    "id": "/owner/repo",
+    "title": "测试新闻",
+    "url": "https://github.com/owner/repo"
+  },
+  "hackernews": {
+    "bodies": [
+      "<table><tr class=\"athing\" id=\"100\"><td><span class=\"titleline\"><a href=\"https://example.org/\">测试新闻</a></span></td></tr></table>"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://news.ycombinator.com/item?id=100"
+  },
+  "hupu": {
+    "bodies": [
+      "<li class=\"bbs-sl-web-post-body\"><a class=\"p-title\" href=\"/100.html\">测试新闻</a></li>"
+    ],
+    "id": "/100.html",
+    "title": "测试新闻",
+    "url": "https://bbs.hupu.com/100.html"
+  },
+  "smzdm": {
+    "bodies": [
+      "<div id=\"feed-main-list\"><h5 class=\"z-feed-title\"><a class=\"feed-title-pre-tag\" href=\"/icon\"><img alt=\"标记\"></a><a href=\"https://post.smzdm.com/p/100/\">测试新闻</a></h5></div>"
+    ],
+    "id": "https://post.smzdm.com/p/100/",
+    "title": "测试新闻",
+    "url": "https://post.smzdm.com/p/100/"
+  },
+  "sputniknewscn": {
+    "bodies": [
+      "<div class=\"lenta__item\"><a href=\"/100.html\"><span class=\"lenta__item-text\">测试新闻</span></a></div>"
+    ],
+    "id": "/100.html",
+    "title": "测试新闻",
+    "url": "https://sputniknews.cn/100.html"
+  },
+  "steam": {
+    "bodies": [
+      "<table id=\"detailStats\"><tr class=\"player_count_row\"><td><a class=\"gameLink\" href=\"https://store.steampowered.com/app/100/\">测试新闻</a></td></tr></table>"
+    ],
+    "id": "https://store.steampowered.com/app/100/",
+    "title": "测试新闻",
+    "url": "https://store.steampowered.com/app/100/"
+  },
+  "chongbuluo-hot": {
+    "bodies": [
+      "<div class=\"bmw\"><table><tr><td>测试新闻</td></tr><tr><td class=\"common\"><a class=\"xst\" href=\"thread-100-1-1.html\">测试新闻</a></td></tr></table></div>"
+    ],
+    "id": "thread-100-1-1.html",
+    "title": "测试新闻",
+    "url": "https://www.chongbuluo.com/thread-100-1-1.html"
+  },
+  "ithome": {
+    "bodies": [
+      "<div id=\"list\"><div class=\"fl\"><ul><li><a class=\"t\" href=\"https://www.ithome.com/0/100.htm\">测试新闻</a></li><li><a class=\"t\" href=\"https://lapin.com/ad\">测试新闻</a></li></ul></div></div>"
+    ],
+    "id": "https://www.ithome.com/0/100.htm",
+    "title": "测试新闻",
+    "url": "https://www.ithome.com/0/100.htm"
+  },
+  "zaobao": {
+    "bodies": [
+      "<div class=\"list-block\"><a class=\"item\" href=\"/realtime/100.html\"><span class=\"eps\">测试新闻</span></a></div>"
+    ],
+    "id": "/realtime/100.html",
+    "title": "测试新闻",
+    "url": "https://www.zaochenbao.com/realtime/100.html"
+  },
+  "36kr-quick": {
+    "bodies": [
+      "<div class=\"newsflash-item\"><a class=\"item-title\" href=\"/newsflashes/100\">测试新闻</a></div>"
+    ],
+    "id": "/newsflashes/100",
+    "title": "测试新闻",
+    "url": "https://www.36kr.com/newsflashes/100"
+  },
+  "36kr-renqi": {
+    "bodies": [
+      "<div class=\"article-item-info\"><a class=\"article-item-title weight-bold\" href=\"/p/100\">测试新闻</a></div>"
+    ],
+    "id": "/p/100",
+    "title": "测试新闻",
+    "url": "https://36kr.com/p/100"
+  },
+  "fastbull-news": {
+    "bodies": [
+      "<a class=\"trending_type\" href=\"/cn/news/100\"><span class=\"title\">测试新闻</span></a>"
+    ],
+    "id": "/cn/news/100",
+    "title": "测试新闻",
+    "url": "https://www.fastbull.com/cn/news/100"
+  },
+  "fastbull-express": {
+    "bodies": [
+      "<div class=\"content-list news-list\" data-date=\"100\"><a data-id=\"100\"><span class=\"title_name\">【测试新闻】摘要</span></a></div>"
+    ],
+    "id": "100",
+    "title": "测试新闻",
+    "url": "https://www.fastbull.com/cn/fastshort/100"
+  },
+  "weibo": {
+    "bodies": [
+      "<div id=\"pl_top_realtimehot\"><table><tbody><tr><td class=\"td-02\"><a href=\"/top\">测试新闻</a></td></tr><tr><td class=\"td-02\"><a href=\"javascript:void(0);\">测试新闻</a></td></tr><tr><td class=\"td-02\"><a href=\"/weibo?q=test\">测试新闻</a></td></tr></tbody></table></div>"
+    ],
+    "id": "测试新闻",
+    "title": "测试新闻",
+    "url": "https://s.weibo.com/weibo?q=test"
+  }
+}

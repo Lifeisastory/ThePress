@@ -52,7 +52,7 @@ class NewsRepositoryTest {
             ]}]}}--></html>
         """.trimIndent()))
 
-        assertEquals(listOf("qqvideo-tv-hotsearch", "baidu"), repository.sources.map { it.id })
+        assertEquals(BuiltInSources.all.map { it.id }, repository.sources.map { it.id })
         assertEquals(
             NewsLoadResult.Success(listOf(NewsArticle(
                 "qqvideo-tv-hotsearch", "video-1", "测试剧集", "https://v.qq.com/x/cover/video-1.html", "剧集简介"

@@ -12,6 +12,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Headers.Companion.toHeaders
+import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -32,7 +33,7 @@ class HttpRequestAdapter(private val client: OkHttpClient) {
             override fun onResponse(call: Call, response: Response) {
                 val payload = try {
                     response.use {
-                        if (!it.isSuccessful) {
+                        if (!it.isSuccessful && it.code !in spec.acceptedStatusCodes) {
                             // 错误正文也限定大小，并交给既有 networkRequest 转换 HTTP 错误
                             throw HttpException(
                                 retrofit2.Response.error<String>(it.peekBody(spec.maxResponseBytes), it)
@@ -43,7 +44,9 @@ class HttpRequestAdapter(private val client: OkHttpClient) {
                         ) {
                             throw AdapterException(ProcessingStage.REQUEST, "响应超过 ${spec.maxResponseBytes} 字节限制")
                         }
-                        HttpPayload(it.request.url, it.headers, it.body.string())
+                        val body = spec.responseCharset?.let { charset -> it.body.source().readString(charset) }
+                            ?: it.body.string()
+                        HttpPayload(it.request.url, it.headers, body)
                     }
                 } catch (error: Exception) {
                     continuation.resumeWithException(error)
@@ -67,7 +70,9 @@ private fun HttpRequestSpec.toRequest(): Request {
             when (method) {
                 HttpMethod.GET -> get()
                 HttpMethod.POST -> post(
-                    jsonBody?.toString()
+                    formBody?.let { fields ->
+                        FormBody.Builder().apply { fields.forEach { (name, value) -> add(name, value) } }.build()
+                    } ?: jsonBody?.toString()
                         ?.toRequestBody("application/json; charset=utf-8".toMediaType())
                         ?: "".toRequestBody()
                 )
