@@ -26,3 +26,4 @@ dependencyResolutionManagement {
 rootProject.name = "ThePress"
 include(":app")
 include(":core:design_system")
+include(":core:ui")

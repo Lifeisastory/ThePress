@@ -2,6 +2,7 @@ plugins {
     id("thepress.android.library")
     alias(libs.plugins.kotlin.compose)
 }
+
 android {
     namespace = "com.aster.core.design_system"
 
