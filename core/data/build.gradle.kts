@@ -12,6 +12,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:analytics"))
     implementation(libs.androidx.core.ktx)
     implementation(project(":core:network"))
     implementation(project(":core:localdb"))

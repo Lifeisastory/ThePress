@@ -1,5 +1,9 @@
 package com.aster.core.data.repository
 
+import com.aster.core.analytics.LogEvent
+import com.aster.core.analytics.LogLevel
+import com.aster.core.analytics.Logger
+import com.aster.core.analytics.NoOpLogger
 import com.aster.core.data.model.NewsArticle
 import com.aster.core.data.model.NewsFailureReason
 import com.aster.core.data.model.NewsLoadResult
@@ -9,6 +13,7 @@ import com.aster.core.localdb.entity.NewsCache
 import com.aster.core.localdb.dto.NewsCacheDao
 import com.aster.core.localdb.entity.NewsCacheEntity
 import com.aster.core.network.NetworkClient
+import com.aster.core.network.logSourceFailure
 import com.aster.core.network.adapters.AdapterManager
 import com.aster.core.network.model.NetworkError
 import com.aster.core.network.model.NetworkResult
@@ -23,11 +28,11 @@ class NewsRepository(
     client: NetworkClient,
     private val cacheDao: NewsCacheDao,
     definitions: List<SourceDefinition> = BuiltInSources.all,
-    private val onNetworkError: (sourceId: String, error: NetworkError) -> Unit = { _, _ -> },
-    private val onCacheError: (sourceId: String, error: Exception) -> Unit = { _, _ -> },
+    private val logger: Logger = NoOpLogger,
     private val currentTimeMillis: () -> Long = System::currentTimeMillis
 ) {
     private val adapters = AdapterManager(client, definitions)
+    private val requestLogging = NewsRequestLogging(logger)
     private val sourceLocks = definitions.associate { it.id to Mutex() }
     val sources: List<NewsSource> = definitions.map { NewsSource(it.id, it.name) }
 
@@ -35,9 +40,17 @@ class NewsRepository(
         val lock = sourceLocks[sourceId] ?: return fetchFromNetwork(sourceId)
         // 同一来源的并发调用在锁内重新检查缓存，不同来源仍可并行请求
         return lock.withLock {
-            val cached = accessCache(sourceId) { cacheDao.read(sourceId) }
-            if (cached != null && currentTimeMillis() - cached.metadata.fetchedAt in 0 until CACHE_TTL_MILLIS) {
-                NewsLoadResult.Success(cached.articles.map {
+            val cached = accessCache(sourceId) {
+                requestLogging.trace(sourceId, "LOCAL_DATABASE", "READ", describe = { (cache, fresh) ->
+                    cache.asLogResponse(fresh)
+                }) {
+                    val cache = cacheDao.read(sourceId)
+                    cache to (cache != null && currentTimeMillis() - cache.metadata.fetchedAt in 0 until CACHE_TTL_MILLIS)
+                }
+            }
+            if (cached?.second == true) {
+                val cache = checkNotNull(cached.first)
+                NewsLoadResult.Success(cache.articles.map {
                     NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary)
                 })
             } else {
@@ -46,22 +59,28 @@ class NewsRepository(
         }
     }
 
-    private suspend fun fetchFromNetwork(sourceId: String): NewsLoadResult = when (val result = adapters.fetch(sourceId)) {
+    private suspend fun fetchFromNetwork(sourceId: String): NewsLoadResult =
+        requestLogging.trace(sourceId, "NETWORK", "FETCH", NewsLoadResult::asLogResponse) {
+            loadFromNetwork(sourceId)
+        }
+
+    private suspend fun loadFromNetwork(sourceId: String): NewsLoadResult = when (val result = adapters.fetch(sourceId)) {
         is NetworkResult.Success -> {
             val articles = result.data.map { NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary) }
             accessCache(sourceId) {
-                cacheDao.replace(NewsCache(
-                    metadata = NewsCacheEntity(sourceId, currentTimeMillis()),
-                    articles = articles.mapIndexed { position, article ->
-                        CachedNewsArticleEntity(sourceId, position, article.id, article.title, article.url, article.summary)
-                    }
-                ))
+                requestLogging.trace(sourceId, "LOCAL_DATABASE", "WRITE", describe = { articles.asLogResponse() }) {
+                    cacheDao.replace(NewsCache(
+                        metadata = NewsCacheEntity(sourceId, currentTimeMillis()),
+                        articles = articles.mapIndexed { position, article ->
+                            CachedNewsArticleEntity(sourceId, position, article.id, article.title, article.url, article.summary)
+                        }
+                    ))
+                }
             }
             NewsLoadResult.Success(articles)
         }
         is NetworkResult.Failure -> {
-            // 转换为界面可用的失败类型之前，将原始异常交给可选的诊断回调
-            onNetworkError(sourceId, result.error)
+            logger.logSourceFailure(sourceId, result.error)
             when (val error = result.error) {
                 is NetworkError.Connection -> NewsLoadResult.Failure(NewsFailureReason.CONNECTION)
                 is NetworkError.Timeout -> NewsLoadResult.Failure(NewsFailureReason.TIMEOUT)
@@ -78,7 +97,7 @@ class NewsRepository(
     } catch (error: CancellationException) {
         throw error
     } catch (error: Exception) {
-        onCacheError(sourceId, error)
+        logger.log(LogEvent("cache_failed", "cache", LogLevel.WARN, mapOf("sourceId" to sourceId), error))
         null
     }
 

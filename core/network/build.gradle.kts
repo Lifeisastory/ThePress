@@ -13,6 +13,7 @@ android {
 }
 
 dependencies {
+    api(project(":core:analytics"))
     implementation(libs.androidx.core.ktx)
     // 客户端配置、Service 注解和 JSON 类型属于模块的公开使用方式
     api(libs.okhttp)

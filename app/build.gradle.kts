@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.core)
     implementation(project(":core:design_system"))
     implementation(project(":core:data"))
+    implementation(project(":core:analytics"))
     implementation(project(":core:localdb"))
     implementation(project(":core:network"))
     implementation(project(":core:navigation"))

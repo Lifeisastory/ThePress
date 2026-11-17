@@ -1,5 +1,7 @@
 package com.aster.core.data.repository
 
+import com.aster.core.analytics.Logger
+import com.aster.core.analytics.LogEvent
 import com.aster.core.data.model.NewsFailureReason
 import com.aster.core.data.model.NewsLoadResult
 import com.aster.core.network.NetworkClient
@@ -12,11 +14,21 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import java.util.concurrent.TimeUnit
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -27,6 +39,7 @@ class NewsRepositoryCacheTest {
     private lateinit var repository: NewsRepository
     private var now = 1_000_000L
     private val cacheErrors = mutableListOf<Exception>()
+    private val events = mutableListOf<LogEvent>()
 
     @Before
     fun setUp() {
@@ -44,7 +57,14 @@ class NewsRepositoryCacheTest {
             ))
         },
         currentTimeMillis = { now },
-        onCacheError = { _, error -> cacheErrors.add(error) }
+        logger = Logger { event ->
+            events.add(event)
+            if (event.name == "cache_failed") {
+                assertEquals("cache", event.category)
+                assertEquals("one", event.attributes["sourceId"])
+                cacheErrors.add(event.cause as Exception)
+            }
+        }
     )
 
     @After
@@ -78,6 +98,7 @@ class NewsRepositoryCacheTest {
         assertEquals(listOf("second"), cache.read("one")!!.articles.map { it.id })
         assertEquals(now, cache.read("one")!!.metadata.fetchedAt)
         assertEquals(2, server.requestCount)
+        assertTrue(events.any { it.attributes["outcome"] == "EXPIRED" })
     }
 
     @Test(timeout = 10_000)
@@ -88,6 +109,10 @@ class NewsRepositoryCacheTest {
         now += 600_000
         server.enqueue(MockResponse.Builder().code(503).build())
         assertEquals(NewsLoadResult.Failure(NewsFailureReason.HTTP, 503), repository.fetch("one"))
+        val failure = events.last { it.name == "request_finished" && it.attributes["origin"] == "NETWORK" }
+        assertEquals("FAILED", failure.attributes["outcome"])
+        assertEquals("HTTP", failure.response!!.jsonObject.getValue("reason").jsonPrimitive.content)
+        assertEquals("503", failure.response!!.jsonObject.getValue("httpCode").jsonPrimitive.content)
         assertEquals(previous, cache.read("one"))
 
         enqueue("new")
@@ -128,6 +153,9 @@ class NewsRepositoryCacheTest {
         assertEquals(emptyList<Any>(), cache.read("one")!!.articles)
         assertEquals(NewsLoadResult.Success(emptyList()), createRepository().fetch("one"))
         assertEquals(2, server.requestCount)
+        val response = events.last().response!!.jsonObject
+        assertEquals("HIT", response.getValue("outcome").jsonPrimitive.content)
+        assertEquals(0, response.getValue("articles").jsonArray.size)
     }
 
     @Test(timeout = 10_000)
@@ -155,6 +183,11 @@ class NewsRepositoryCacheTest {
         enqueue("first")
         assertEquals("first", (repository.fetch("one") as NewsLoadResult.Success).articles.single().id)
         assertEquals(listOf(cache.readError, cache.writeError), cacheErrors)
+        val failedOperations = events.filter {
+            it.name == "request_finished" && it.attributes["origin"] == "LOCAL_DATABASE"
+        }
+        assertEquals(listOf("READ", "WRITE"), failedOperations.map { it.attributes["operation"] })
+        assertTrue(failedOperations.all { it.attributes["outcome"] == "FAILED" })
     }
 
     @Test(timeout = 10_000)
@@ -169,5 +202,48 @@ class NewsRepositoryCacheTest {
         }
         assertEquals(0, server.requestCount)
         assertEquals(emptyList<Exception>(), cacheErrors)
+        assertEquals(listOf("request_started", "request_finished"), events.map { it.name })
+        assertEquals("CANCELED", events.last().attributes["outcome"])
+        assertEquals("LOCAL_DATABASE", events.last().attributes["origin"])
+    }
+
+    @Test(timeout = 10_000)
+    fun databaseAndNetworkRequestsLogPairedEventsAndStructuredArticles() = runBlocking {
+        enqueue("first")
+        repository.fetch("one")
+        repository.fetch("one")
+        assertEquals(1, server.requestCount)
+        val requests = events.filter { it.category == "request" }.groupBy { it.attributes.getValue("requestId") }
+        assertEquals(4, requests.size) // 数据库未命中、网络加载、缓存写入、数据库命中。
+        requests.values.forEach { pair ->
+            assertEquals(listOf("request_started", "request_finished"), pair.map { it.name })
+            assertEquals(pair.first().attributes["origin"], pair.last().attributes["origin"])
+            assertEquals("one", pair.first().attributes["sourceId"])
+            assertTrue(pair.last().attributes.getValue("durationMs").toLong() >= 0)
+            assertNotNull(pair.last().response)
+        }
+        val network = events.single { it.name == "request_finished" && it.attributes["origin"] == "NETWORK" }
+        val local = events.last()
+        assertEquals("LOCAL_DATABASE", local.attributes["origin"])
+        assertEquals("HIT", local.attributes["outcome"])
+        val articles = network.response!!.jsonObject.getValue("articles").jsonArray
+        assertEquals(articles, local.response!!.jsonObject.getValue("articles"))
+        assertEquals("first", articles.single().jsonObject.getValue("id").jsonPrimitive.content)
+        assertEquals("Title first", articles.single().jsonObject.getValue("title").jsonPrimitive.content)
+        assertEquals("https://example.com/first", articles.single().jsonObject.getValue("url").jsonPrimitive.content)
+        assertEquals("one", articles.single().jsonObject.getValue("sourceId").jsonPrimitive.content)
+        assertEquals(JsonNull, articles.single().jsonObject.getValue("summary"))
+    }
+
+    @Test(timeout = 10_000)
+    fun networkCancellationLogsItsCompletionWithoutWritingCache() = runBlocking {
+        server.enqueue(MockResponse.Builder().body("[]").bodyDelay(5, TimeUnit.SECONDS).build())
+        val request = async { repository.fetch("one") }
+        assertNotNull(withContext(Dispatchers.IO) { server.takeRequest(2, TimeUnit.SECONDS) })
+        request.cancelAndJoin()
+        val network = events.filter { it.attributes["origin"] == "NETWORK" }
+        assertEquals(listOf("request_started", "request_finished"), network.map { it.name })
+        assertEquals("CANCELED", network.last().attributes["outcome"])
+        assertNull(cache.read("one"))
     }
 }

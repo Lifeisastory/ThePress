@@ -8,6 +8,7 @@ import com.aster.core.network.model.NetworkResult
 import com.aster.core.network.model.ProcessingStage
 import com.aster.core.network.model.SourceDefinition
 import com.aster.core.network.networkRequest
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
 
@@ -48,7 +49,7 @@ class AdapterManager(
                 )
             )
         }
-        coroutineContext.ensureActive()
+        currentCoroutineContext().ensureActive()
         return if (result is NetworkResult.Failure && source.fallback != null) {
             fetchDefinition(source.fallback, sourceId)
         } else result

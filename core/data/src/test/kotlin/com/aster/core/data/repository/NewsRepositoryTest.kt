@@ -1,10 +1,12 @@
 package com.aster.core.data.repository
 
+import com.aster.core.analytics.LogEvent
+import com.aster.core.analytics.LogLevel
+import com.aster.core.analytics.Logger
 import com.aster.core.data.model.NewsArticle
 import com.aster.core.data.model.NewsFailureReason
 import com.aster.core.data.model.NewsLoadResult
 import com.aster.core.network.NetworkClient
-import com.aster.core.network.model.NetworkError
 import com.aster.core.network.sources.BuiltInSources
 import java.net.UnknownHostException
 import kotlinx.coroutines.runBlocking
@@ -83,14 +85,16 @@ class NewsRepositoryTest {
         val source = BuiltInSources.all.single { it.id == "baidu" }.let {
             it.copy(request = it.request.copy(url = "https://dns.test.invalid/".toHttpUrl()))
         }
-        val errors = mutableListOf<Pair<String, NetworkError>>()
-        val repository = NewsRepository(failingClient, FakeNewsCacheDao(), listOf(source), onNetworkError = { sourceId, error ->
-            errors.add(sourceId to error)
+        val errors = mutableListOf<LogEvent>()
+        val repository = NewsRepository(failingClient, FakeNewsCacheDao(), listOf(source), logger = Logger {
+            if (it.name == "source_failed") errors.add(it)
         })
 
         assertEquals(NewsLoadResult.Failure(NewsFailureReason.CONNECTION), repository.fetch("baidu"))
-        assertEquals("baidu", errors.single().first)
-        val reportedCause = (errors.single().second as NetworkError.Connection).cause
+        assertEquals("source_failed", errors.single().name)
+        assertEquals(LogLevel.ERROR, errors.single().level)
+        assertEquals("baidu", errors.single().attributes["sourceId"])
+        val reportedCause = checkNotNull(errors.single().cause)
         assertEquals(cause.javaClass, reportedCause.javaClass)
         assertEquals(cause.message, reportedCause.message)
     }
