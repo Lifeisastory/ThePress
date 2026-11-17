@@ -66,8 +66,10 @@ class AdapterManagerTest {
 
     @Test(timeout = 10_000)
     fun platformDefinitionsSelectDifferentToolsWithoutPlatformBranches() = runBlocking {
-        val tencent = BuiltInSources.tencentVideo.let { it.copy(request = it.request.copy(url = server.url("/tencent"))) }
-        val baidu = BuiltInSources.baidu.let {
+        val tencent = BuiltInSources.all.single { it.id == "qqvideo-tv-hotsearch" }.let {
+            it.copy(request = it.request.copy(url = server.url("/tencent")))
+        }
+        val baidu = BuiltInSources.all.single { it.id == "baidu" }.let {
             it.copy(request = it.request.copy(url = server.url("/baidu"), query = it.request.query + ("q" to "中文 &x=1")))
         }
         val manager = AdapterManager(client, listOf(tencent, baidu))

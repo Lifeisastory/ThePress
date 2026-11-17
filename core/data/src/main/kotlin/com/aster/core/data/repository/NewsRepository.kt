@@ -4,26 +4,61 @@ import com.aster.core.data.model.NewsArticle
 import com.aster.core.data.model.NewsFailureReason
 import com.aster.core.data.model.NewsLoadResult
 import com.aster.core.data.model.NewsSource
+import com.aster.core.localdb.entity.CachedNewsArticleEntity
+import com.aster.core.localdb.entity.NewsCache
+import com.aster.core.localdb.dto.NewsCacheDao
+import com.aster.core.localdb.entity.NewsCacheEntity
 import com.aster.core.network.NetworkClient
 import com.aster.core.network.adapters.AdapterManager
 import com.aster.core.network.model.NetworkError
 import com.aster.core.network.model.NetworkResult
 import com.aster.core.network.model.SourceDefinition
 import com.aster.core.network.sources.BuiltInSources
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
-/** 将来源适配结果转换为应用数据，调用方无需依赖网络 DTO */
+/** 按来源优先读取十分钟内的本地快照，网络成功后整体替换缓存 */
 class NewsRepository(
     client: NetworkClient,
+    private val cacheDao: NewsCacheDao,
     definitions: List<SourceDefinition> = BuiltInSources.all,
-    private val onNetworkError: (sourceId: String, error: NetworkError) -> Unit = { _, _ -> }
+    private val onNetworkError: (sourceId: String, error: NetworkError) -> Unit = { _, _ -> },
+    private val onCacheError: (sourceId: String, error: Exception) -> Unit = { _, _ -> },
+    private val currentTimeMillis: () -> Long = System::currentTimeMillis
 ) {
     private val adapters = AdapterManager(client, definitions)
+    private val sourceLocks = definitions.associate { it.id to Mutex() }
     val sources: List<NewsSource> = definitions.map { NewsSource(it.id, it.name) }
 
-    suspend fun fetch(sourceId: String): NewsLoadResult = when (val result = adapters.fetch(sourceId)) {
-        is NetworkResult.Success -> NewsLoadResult.Success(
-            result.data.map { NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary) }
-        )
+    suspend fun fetch(sourceId: String): NewsLoadResult {
+        val lock = sourceLocks[sourceId] ?: return fetchFromNetwork(sourceId)
+        // 同一来源的并发调用在锁内重新检查缓存，不同来源仍可并行请求
+        return lock.withLock {
+            val cached = accessCache(sourceId) { cacheDao.read(sourceId) }
+            if (cached != null && currentTimeMillis() - cached.metadata.fetchedAt in 0 until CACHE_TTL_MILLIS) {
+                NewsLoadResult.Success(cached.articles.map {
+                    NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary)
+                })
+            } else {
+                fetchFromNetwork(sourceId)
+            }
+        }
+    }
+
+    private suspend fun fetchFromNetwork(sourceId: String): NewsLoadResult = when (val result = adapters.fetch(sourceId)) {
+        is NetworkResult.Success -> {
+            val articles = result.data.map { NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary) }
+            accessCache(sourceId) {
+                cacheDao.replace(NewsCache(
+                    metadata = NewsCacheEntity(sourceId, currentTimeMillis()),
+                    articles = articles.mapIndexed { position, article ->
+                        CachedNewsArticleEntity(sourceId, position, article.id, article.title, article.url, article.summary)
+                    }
+                ))
+            }
+            NewsLoadResult.Success(articles)
+        }
         is NetworkResult.Failure -> {
             // 转换为界面可用的失败类型之前，将原始异常交给可选的诊断回调
             onNetworkError(sourceId, result.error)
@@ -35,5 +70,19 @@ class NewsRepository(
                     NewsLoadResult.Failure(NewsFailureReason.INVALID_DATA)
             }
         }
+    }
+
+    // 缓存不可用时仍允许网络加载；取消信号必须继续传递
+    private suspend fun <T> accessCache(sourceId: String, block: suspend () -> T): T? = try {
+        block()
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        onCacheError(sourceId, error)
+        null
+    }
+
+    private companion object {
+        const val CACHE_TTL_MILLIS = 10 * 60 * 1000L
     }
 }

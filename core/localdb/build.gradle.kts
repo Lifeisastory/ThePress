@@ -19,8 +19,10 @@ room {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.room.runtime)
+    api(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.kotlinx.coroutines.core)
 }

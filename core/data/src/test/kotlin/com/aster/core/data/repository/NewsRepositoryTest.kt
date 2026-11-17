@@ -26,7 +26,7 @@ class NewsRepositoryTest {
         server = MockWebServer()
         server.start()
         client = NetworkClient()
-        repository = NewsRepository(client, BuiltInSources.all.map {
+        repository = NewsRepository(client, FakeNewsCacheDao(), BuiltInSources.all.map {
             it.copy(request = it.request.copy(url = server.url("/${it.id}")))
         })
     }
@@ -80,11 +80,11 @@ class NewsRepositoryTest {
     fun diagnosticsKeepTheSourceIdAndOriginalDnsFailure() = runBlocking {
         val cause = UnknownHostException("synthetic DNS failure")
         val failingClient = NetworkClient(client.httpClient.newBuilder().dns { throw cause }.build())
-        val source = BuiltInSources.baidu.let {
+        val source = BuiltInSources.all.single { it.id == "baidu" }.let {
             it.copy(request = it.request.copy(url = "https://dns.test.invalid/".toHttpUrl()))
         }
         val errors = mutableListOf<Pair<String, NetworkError>>()
-        val repository = NewsRepository(failingClient, listOf(source), onNetworkError = { sourceId, error ->
+        val repository = NewsRepository(failingClient, FakeNewsCacheDao(), listOf(source), onNetworkError = { sourceId, error ->
             errors.add(sourceId to error)
         })
 
