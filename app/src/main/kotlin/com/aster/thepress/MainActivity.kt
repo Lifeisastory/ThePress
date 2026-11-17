@@ -6,8 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import com.aster.core.design_system.demo.LiquidGlassNavigationDemo
 import com.aster.core.design_system.theme.AppTheme
+import com.aster.thepress.ui.App
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme {
-                LiquidGlassNavigationDemo()
+                App()
             }
         }
     }
@@ -25,6 +25,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun LiquidGlassNavigationPreview() {
     AppTheme {
-        LiquidGlassNavigationDemo()
+        App()
     }
 }

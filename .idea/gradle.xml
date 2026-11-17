@@ -23,7 +23,10 @@
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/build-logic" />
             <option value="$PROJECT_DIR$/core" />
+            <option value="$PROJECT_DIR$/core/data" />
             <option value="$PROJECT_DIR$/core/design_system" />
+            <option value="$PROJECT_DIR$/core/localdb" />
+            <option value="$PROJECT_DIR$/core/localsp" />
             <option value="$PROJECT_DIR$/core/ui" />
           </set>
         </option>

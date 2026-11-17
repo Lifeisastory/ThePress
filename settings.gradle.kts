@@ -27,3 +27,6 @@ rootProject.name = "ThePress"
 include(":app")
 include(":core:design_system")
 include(":core:ui")
+include(":core:data")
+include(":core:localdb")
+include(":core:localsp")

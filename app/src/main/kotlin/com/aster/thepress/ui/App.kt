@@ -1,4 +1,4 @@
-package com.aster.core.design_system.demo
+package com.aster.thepress.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,12 +24,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -50,19 +50,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aster.core.design_system.R
-import com.aster.core.design_system.component.LiquidGlassNavigationBar
-import com.aster.core.design_system.component.LiquidGlassNavigationItem
+import com.aster.core.design_system.component.AppNavigationBar
+import com.aster.core.design_system.component.AppNavigationItem
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
-/** 可直接运行的示例：滚动内容从导航栏下方经过，供玻璃实时取样。 */
+
 @Composable
-fun LiquidGlassNavigationDemo(modifier: Modifier = Modifier) {
+fun App(modifier: Modifier = Modifier) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
     val items = listOf(
-        LiquidGlassNavigationItem(stringResource(R.string.glass_demo_home), Icons.Default.Home),
-        LiquidGlassNavigationItem(stringResource(R.string.glass_demo_discover), Icons.Default.Search),
-        LiquidGlassNavigationItem(stringResource(R.string.glass_demo_saved), Icons.Default.Favorite)
+        AppNavigationItem(stringResource(R.string.glass_demo_home), Icons.Default.Home),
+        AppNavigationItem(stringResource(R.string.glass_demo_discover), Icons.Default.Search),
+        AppNavigationItem(stringResource(R.string.glass_demo_saved), Icons.Default.Favorite)
     )
     val titles = stringArrayResource(R.array.glass_demo_titles)
     val headlines = stringArrayResource(
@@ -87,7 +87,7 @@ fun LiquidGlassNavigationDemo(modifier: Modifier = Modifier) {
     var navigationBarHeight by remember { mutableStateOf(104.dp) }
 
     Box(modifier.fillMaxSize().background(backgroundColor)) {
-        // 只记录页面；玻璃栏必须在这个 layerBackdrop 节点之外。
+        // 只记录页面；玻璃栏必须在这个 layerBackdrop 节点之外
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -134,7 +134,7 @@ fun LiquidGlassNavigationDemo(modifier: Modifier = Modifier) {
             }
         }
 
-        LiquidGlassNavigationBar(
+        AppNavigationBar(
             items = items,
             selectedIndex = selectedIndex,
             onItemSelected = { selectedIndex = it },

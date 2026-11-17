@@ -69,23 +69,23 @@ import com.kyant.backdrop.shadow.Shadow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlin.math.roundToInt
+import kotlin.math.abs
 
 @Immutable
-data class LiquidGlassNavigationItem(
+data class AppNavigationItem(
     val label: String,
     val icon: ImageVector
 )
 
 /**
- * 悬浮玻璃导航栏。调用方持有选中状态，并负责外边距和系统栏 Insets。
+ * 悬浮玻璃导航栏
  *
  * 将页面内容通过 Modifier.layerBackdrop 记录到同一个 backdrop；导航栏应作为内容的
- * 兄弟节点绘制在其上方，避免把导航栏自身录入背景。参见 LiquidGlassNavigationDemo。
- * 横向拖动时胶囊跟随手指，松手后才提交选中项；取消手势则回到原选中项。
+ * 兄弟节点绘制在其上方，避免把导航栏自身录入背景
  */
 @Composable
-fun LiquidGlassNavigationBar(
-    items: List<LiquidGlassNavigationItem>,
+fun AppNavigationBar(
+    items: List<AppNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
     backdrop: Backdrop,
@@ -96,7 +96,7 @@ fun LiquidGlassNavigationBar(
 
     val colors = MaterialTheme.colorScheme
     val isLightSurface = colors.surface.luminance() > 0.5f
-    // Android 12 以下没有背景模糊，提高底色不透明度以保证文字可读性。
+    // Android 12 以下没有背景模糊，提高底色不透明度以保证文字可读性
     val surfaceColor = colors.surface.copy(
         alpha = when {
             Build.VERSION.SDK_INT < Build.VERSION_CODES.S -> 0.94f
@@ -104,13 +104,13 @@ fun LiquidGlassNavigationBar(
             else -> 0.30f
         }
     )
-    // 记录底板最终外观（含高光、阴影），胶囊作为兄弟节点，不进入这份采样。
+    // 记录底板最终外观（含高光、阴影），胶囊作为兄弟节点，不进入这份采样
     val glassBackdrop = rememberLayerBackdrop()
     val contentTint = remember(colors.primary) {
         Paint().apply { colorFilter = ColorFilter.tint(colors.primary) }
     }
-    // layerBackdrop 正常绘制原色内容，只将主题色版本记录给胶囊采样。
-    // 记录范围仅包含图标、文字，不包含玻璃底板或胶囊，避免递归采样。
+    // layerBackdrop 正常绘制原色内容，只将主题色版本记录给胶囊采样
+    // 记录范围仅包含图标、文字，不包含玻璃底板或胶囊，避免递归采样
     val contentBackdrop = rememberLayerBackdrop {
         drawContext.canvas.saveLayer(Rect(0f, 0f, size.width, size.height), contentTint)
         try {
@@ -150,12 +150,12 @@ fun LiquidGlassNavigationBar(
         }
     }
 
-    // drawBackdrop 会裁剪其子节点；只把它用于底板，浮动胶囊作为兄弟节点绘制。
+    // drawBackdrop 会裁剪其子节点；只把它用于底板，浮动胶囊作为兄弟节点绘制
     Box(modifier = modifier.fillMaxWidth()) {
         Box(
             Modifier
                 .matchParentSize()
-                // 必须放在 drawBackdrop 外侧，才能录入它绘制的玻璃表面与装饰。
+                // 必须放在 drawBackdrop 外侧，才能录入它绘制的玻璃表面与装饰
                 .layerBackdrop(glassBackdrop)
                 .drawBackdrop(
                     backdrop = backdrop,
@@ -169,7 +169,7 @@ fun LiquidGlassNavigationBar(
                     shadow = { Shadow(radius = 20.dp, color = Color.Black.copy(alpha = 0.16f)) },
                     innerShadow = { InnerShadow(radius = 8.dp, alpha = 0.45f) },
                     layerBlock = {
-                        // 边缘拖动只让底板轻微平移，保持原有宽高。
+                        // 边缘拖动只让底板轻微平移，保持原有宽高
                         translationX = edgePull.coerceIn(-maxEdgePullPx, maxEdgePullPx)
                     },
                     onDrawSurface = { drawRect(surfaceColor) }
@@ -184,7 +184,7 @@ fun LiquidGlassNavigationBar(
                 mutableStateOf<Float?>(null)
             }
             val isDragging = dragPosition != null
-            val dragDynamics = remember(items.size, itemWidthPx, layoutDirection) { LiquidGlassDragDynamics() }
+            val dragDynamics = remember(items.size, itemWidthPx, layoutDirection) { NavigationBarDragDynamics() }
             var stretchTarget by remember { mutableFloatStateOf(0f) }
             var dragSample by remember { mutableIntStateOf(0) }
             val capsulePosition = dragPosition ?: selectedIndex.toFloat()
@@ -196,7 +196,7 @@ fun LiquidGlassNavigationBar(
                 label = "Navigation capsule inertia"
             )
             LaunchedEffect(dragSample) {
-                // 手指停住后也恢复形状，不依赖下一次移动事件。
+                // 手指停住后也恢复形状，不依赖下一次移动事件
                 delay(80)
                 stretchTarget = 0f
             }
@@ -211,21 +211,21 @@ fun LiquidGlassNavigationBar(
                 if (isInteracting) {
                     liftProgress.animateTo(1f, tween(120))
                 } else {
-                    // 快速轻点也完成一次抬起反馈；拖动结束或取消则直接回弹。
+                    // 快速轻点也完成一次抬起反馈；拖动结束或取消则直接回弹
                     if (tapReleased) liftProgress.animateTo(1f, tween(80))
                     liftProgress.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f))
                 }
             }
-            // Press 被拖动取消时，isInteracting 仍为 true，同一个动画保持当前进度。
+            // Press 被拖动取消时，isInteracting 仍为 true，同一个动画保持当前进度
             val interactionProgress = liftProgress.value.coerceIn(0f, 1f)
-            // 接近两端时逐渐收起惯性形变，到达边界后保持按压尺寸。
+            // 接近两端时逐渐收起惯性形变，到达边界后保持按压尺寸
             val stretchWeight = (distanceToEdge / 0.25f).coerceIn(0f, 1f)
             val stretch = 1f + dragStretch.coerceIn(-0.12f, 0.18f) * stretchWeight
-            // 反向调整高度，保持按压后的面积，避免形变被感知为整体忽然缩小。
+            // 反向调整高度，保持按压后的面积，避免形变被感知为整体忽然缩小
             val indicatorScaleX = (1f + 0.15f * interactionProgress) * stretch
             val indicatorScaleY = (1f + 0.3f * interactionProgress) / stretch
-            // 按视觉层级叠加页面、完整底板、导航内容，再整体进行胶囊折射。
-            // 页面层也保证胶囊放大到超出底板时仍有背景可采样。
+            // 按视觉层级叠加页面、完整底板、导航内容，再整体进行胶囊折射
+            // 页面层也保证胶囊放大到超出底板时仍有背景可采样
             val indicatorBackdrop = rememberCombinedBackdrop(backdrop, glassBackdrop, contentBackdrop)
 
             Row(
@@ -270,7 +270,7 @@ fun LiquidGlassNavigationBar(
                                         change.uptimeMillis - change.previousUptimeMillis
                                     )
                                 } else {
-                                    // 边缘移动不积累速度，返回中间时也不带入越界位移。
+                                    // 边缘移动不积累速度，返回中间时也不带入越界位移
                                     dragDynamics.reset()
                                     0f
                                 }
@@ -323,7 +323,7 @@ fun LiquidGlassNavigationBar(
                 }
             }
 
-            // 先记录导航内容，再绘制折射胶囊，避免原色内容覆盖折射结果。
+            // 先记录导航内容，再绘制折射胶囊，避免原色内容覆盖折射结果
             Box(Modifier.matchParentSize()) {
                 Box(
                     Modifier
@@ -357,4 +357,35 @@ fun LiquidGlassNavigationBar(
             }
         }
     }
+}
+
+/** 以 tab 宽度归一化手势，避免屏幕密度和导航栏宽度改变形变强度 */
+internal class NavigationBarDragDynamics {
+    private var velocity = 0f
+
+    fun reset() {
+        velocity = 0f
+    }
+
+    fun sample(deltaTabs: Float, elapsedMillis: Long): Float {
+        if (elapsedMillis <= 0 || !deltaTabs.isFinite()) return 0f
+        // 长时间停顿后的首个事件不应被当成突然加速
+        if (elapsedMillis > 120) {
+            reset()
+            return 0f
+        }
+        val seconds = elapsedMillis.coerceAtLeast(8) / 1000f
+        val previousSpeed = abs(velocity)
+        val smoothing = seconds / (0.04f + seconds)
+        velocity += (deltaTabs / seconds - velocity) * smoothing
+        val acceleration = (abs(velocity) - previousSpeed) / seconds
+        return (acceleration / 100f * 0.16f).coerceIn(-0.12f, 0.18f)
+    }
+}
+
+/** 两端越拉越难，最大位移渐近于 maxPullPx，且保留物理拖动方向 */
+internal fun dampedGlassEdgePull(overflowPx: Float, maxPullPx: Float): Float {
+    if (maxPullPx <= 0f || !overflowPx.isFinite()) return 0f
+    val resisted = overflowPx * 0.35f
+    return maxPullPx * (resisted / (maxPullPx + abs(resisted)))
 }

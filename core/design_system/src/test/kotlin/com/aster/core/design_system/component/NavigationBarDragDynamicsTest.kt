@@ -4,10 +4,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class LiquidGlassDragDynamicsTest {
+class NavigationBarDragDynamicsTest {
     @Test
     fun accelerationStretchesAndBrakingCompresses() {
-        val dynamics = LiquidGlassDragDynamics()
+        val dynamics = NavigationBarDragDynamics()
         assertTrue(dynamics.sample(0.1f, 16) > 0f)
         repeat(40) { dynamics.sample(0.1f, 16) }
         assertEquals(0f, dynamics.sample(0.1f, 16), 0.001f)
@@ -16,7 +16,7 @@ class LiquidGlassDragDynamicsTest {
 
     @Test
     fun rapidDirectionChangesRemainBounded() {
-        val dynamics = LiquidGlassDragDynamics()
+        val dynamics = NavigationBarDragDynamics()
         repeat(100) { index ->
             val stretch = dynamics.sample(if (index % 2 == 0) 10f else -10f, 1)
             assertTrue(stretch.isFinite() && stretch in -0.12f..0.18f)
@@ -27,10 +27,10 @@ class LiquidGlassDragDynamicsTest {
 
     @Test
     fun pauseAndResetDiscardPreviousVelocity() {
-        val dynamics = LiquidGlassDragDynamics()
+        val dynamics = NavigationBarDragDynamics()
         repeat(10) { dynamics.sample(1f, 16) }
         assertEquals(0f, dynamics.sample(1f, 200), 0f)
-        val freshResponse = LiquidGlassDragDynamics().sample(0.01f, 16)
+        val freshResponse = NavigationBarDragDynamics().sample(0.01f, 16)
         assertEquals(freshResponse, dynamics.sample(0.01f, 16), 0f)
         dynamics.reset()
         assertEquals(freshResponse, dynamics.sample(0.01f, 16), 0f)
