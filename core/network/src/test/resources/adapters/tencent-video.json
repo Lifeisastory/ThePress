@@ -1,0 +1,15 @@
+{
+  "ret": 0,
+  "data": {
+    "card": {
+      "children_list": {
+        "list": {
+          "cards": [
+            {"id": "test-cid-1", "params": {"title": "测试剧集一", "sub_title": "剧集简介"}},
+            {"id": "test-cid-2", "params": {"title": "测试剧集二"}}
+          ]
+        }
+      }
+    }
+  }
+}

@@ -13,6 +13,9 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(project(":core:network"))
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.core)
+    testImplementation(libs.mockwebserver)
     androidTestImplementation(libs.androidx.junit)
 }

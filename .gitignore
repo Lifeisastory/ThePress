@@ -1,15 +1,32 @@
+# Gradle / Kotlin caches and build output in every module
+.gradle/
+.kotlin/
+build/
+out/
+
+# Android Studio / IntelliJ local project settings
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+
+# Local SDK and signing configuration
 local.properties
+key.properties
+keystore.properties
+*.jks
+*.keystore
+
+# Native build output and profiler captures
+.externalNativeBuild/
+.cxx/
+captures/
+*.hprof
+
+# Generated Android packages
+*.apk
+*.aab
+*.ap_
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

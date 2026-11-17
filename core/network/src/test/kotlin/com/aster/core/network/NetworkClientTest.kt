@@ -1,5 +1,7 @@
 package com.aster.core.network
 
+import com.aster.core.network.model.NetworkError
+import com.aster.core.network.model.NetworkResult
 import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking

@@ -1,5 +1,7 @@
 package com.aster.core.network
 
+import com.aster.core.network.model.NetworkError
+import com.aster.core.network.model.NetworkResult
 import java.io.IOException
 import java.io.InterruptedIOException
 import kotlinx.coroutines.CancellationException
@@ -15,7 +17,7 @@ import retrofit2.Response
  *
  * Service 可直接返回 DTO、String、Unit，或返回 Response<T> 以保留响应元信息
  * Response<T> 也会检查 HTTP 状态，但成功时不拆包
- * [block] 仅放请求调用；取消和程序错误继续抛出，不转换为普通失败
+ * [block] 仅放请求及必要的响应转换；取消和程序错误继续抛出，不转换为普通失败
  */
 suspend fun <T> networkRequest(block: suspend () -> T): NetworkResult<T> =
     withContext(Dispatchers.IO) {

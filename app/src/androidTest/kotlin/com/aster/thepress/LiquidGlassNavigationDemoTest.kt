@@ -8,12 +8,13 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.aster.core.design_system.R as DesignSystemR
+import com.aster.feature.home.api.R as HomeApiR
+import com.aster.feature.home.impl.R as HomeImplR
+import com.aster.feature.me.api.R as MeApiR
+import com.aster.feature.saved.api.R as SavedApiR
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -24,26 +25,34 @@ class LiquidGlassNavigationDemoTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
 
+    private fun tabLabels() = listOf(
+        HomeApiR.string.feature_home_title,
+        SavedApiR.string.feature_saved_title,
+        MeApiR.string.feature_me_title
+    ).map { composeRule.activity.getString(it) }
+
+    private fun pageTitles() = listOf(
+        HomeImplR.string.home_title,
+        SavedApiR.string.feature_saved_title,
+        MeApiR.string.feature_me_title
+    ).map { composeRule.activity.getString(it) }
+
     @Test
     fun tabsSwitchContentAndSelectionSurvivesActivityRecreation() {
-        val titles = composeRule.activity.resources.getStringArray(DesignSystemR.array.glass_demo_titles)
-        val labels = listOf(
-            DesignSystemR.string.glass_demo_home,
-            DesignSystemR.string.glass_demo_discover,
-            DesignSystemR.string.glass_demo_saved
-        ).map { composeRule.activity.getString(it) }
+        val titles = pageTitles()
+        val labels = tabLabels()
 
         labels.forEachIndexed { index, label ->
             composeRule.onNode(hasText(label) and hasClickAction())
                 .performClick()
                 .assertIsSelected()
-            composeRule.onNodeWithTag("glass_demo_title").assertTextEquals(titles[index])
+            composeRule.onNodeWithTag("page_title").assertTextEquals(titles[index])
         }
 
         composeRule.activityRule.scenario.recreate()
 
         composeRule.onNode(hasText(labels.last()) and hasClickAction()).assertIsSelected()
-        composeRule.onNodeWithTag("glass_demo_title").assertTextEquals(titles.last())
+        composeRule.onNodeWithTag("page_title").assertTextEquals(titles.last())
     }
 
     @Test
@@ -157,8 +166,8 @@ class LiquidGlassNavigationDemoTest {
 
     @Test
     fun heldTabFollowsFingerAndCommitsOnlyOnRelease() {
-        val titles = composeRule.activity.resources.getStringArray(DesignSystemR.array.glass_demo_titles)
-        val savedLabel = composeRule.activity.getString(DesignSystemR.string.glass_demo_saved)
+        val titles = pageTitles()
+        val meLabel = composeRule.activity.getString(MeApiR.string.feature_me_title)
         val tabs = composeRule.onNodeWithTag("liquid_glass_navigation_tabs")
         val indicator = composeRule.onNodeWithTag("liquid_glass_navigation_indicator")
         val startX = indicator.fetchSemanticsNode().boundsInRoot.center.x
@@ -173,26 +182,26 @@ class LiquidGlassNavigationDemoTest {
         val draggedX = indicator.fetchSemanticsNode().boundsInRoot.center.x
         assertTrue("The capsule must follow between tabs", draggedX > startX + tabWidth * 0.3f)
         assertTrue("The capsule must not jump to the next tab", draggedX < startX + tabWidth * 0.7f)
-        composeRule.onNodeWithTag("glass_demo_title").assertTextEquals(titles.first())
+        composeRule.onNodeWithTag("page_title").assertTextEquals(titles.first())
 
         tabs.performTouchInput {
             moveTo(Offset(width * 5f / 6f, centerY))
             up()
         }
-        composeRule.onNode(hasText(savedLabel) and hasClickAction()).assertIsSelected()
-        composeRule.onNodeWithTag("glass_demo_title").assertTextEquals(titles.last())
+        composeRule.onNode(hasText(meLabel) and hasClickAction()).assertIsSelected()
+        composeRule.onNodeWithTag("page_title").assertTextEquals(titles.last())
 
         tabs.performTouchInput {
             down(Offset(width * 5f / 6f, centerY))
             moveTo(Offset(width / 6f, centerY))
             up()
         }
-        composeRule.onNodeWithTag("glass_demo_title").assertTextEquals(titles.first())
+        composeRule.onNodeWithTag("page_title").assertTextEquals(titles.first())
     }
 
     @Test
     fun cancelledDragRestoresSelectionAndIndicator() {
-        val homeLabel = composeRule.activity.getString(DesignSystemR.string.glass_demo_home)
+        val homeLabel = composeRule.activity.getString(HomeApiR.string.feature_home_title)
         val tabs = composeRule.onNodeWithTag("liquid_glass_navigation_tabs")
         val indicator = composeRule.onNodeWithTag("liquid_glass_navigation_indicator")
         val startX = indicator.fetchSemanticsNode().boundsInRoot.center.x
@@ -210,8 +219,8 @@ class LiquidGlassNavigationDemoTest {
 
     @Test
     fun draggingPastEdgesClampsToFirstAndLastTab() {
-        val homeLabel = composeRule.activity.getString(DesignSystemR.string.glass_demo_home)
-        val savedLabel = composeRule.activity.getString(DesignSystemR.string.glass_demo_saved)
+        val homeLabel = composeRule.activity.getString(HomeApiR.string.feature_home_title)
+        val meLabel = composeRule.activity.getString(MeApiR.string.feature_me_title)
         val tabs = composeRule.onNodeWithTag("liquid_glass_navigation_tabs")
 
         tabs.performTouchInput {
@@ -219,7 +228,7 @@ class LiquidGlassNavigationDemoTest {
             moveTo(Offset(width + 100f, centerY))
             up()
         }
-        composeRule.onNode(hasText(savedLabel) and hasClickAction()).assertIsSelected()
+        composeRule.onNode(hasText(meLabel) and hasClickAction()).assertIsSelected()
         tabs.performTouchInput {
             down(Offset(width * 5f / 6f, centerY))
             moveTo(Offset(-100f, centerY))
@@ -229,22 +238,34 @@ class LiquidGlassNavigationDemoTest {
     }
 
     @Test
-    fun lastArticleRemainsAboveFloatingNavigationAfterScrolling() {
-        val headlines = composeRule.activity.resources.getStringArray(
-            DesignSystemR.array.glass_demo_home_articles
-        )
-        val homeLabel = composeRule.activity.getString(DesignSystemR.string.glass_demo_home)
-
-        composeRule.onNodeWithTag("glass_demo_feed").performScrollToIndex(headlines.size)
-        val lastArticle = composeRule.onNodeWithText(headlines.last()).assertIsDisplayed()
-        val homeTab = composeRule.onNode(hasText(homeLabel) and hasClickAction())
+    fun placeholderRemainsAboveFloatingNavigation() {
+        val savedLabel = composeRule.activity.getString(SavedApiR.string.feature_saved_title)
+        composeRule.onNode(hasText(savedLabel) and hasClickAction()).performClick()
+        composeRule.onNodeWithTag("saved_screen").assertIsDisplayed()
+        val title = composeRule.onNodeWithTag("page_title").assertIsDisplayed()
+        val savedTab = composeRule.onNode(hasText(savedLabel) and hasClickAction())
             .assertIsDisplayed()
             .assertIsSelected()
 
         assertTrue(
-            "The floating navigation must not cover the last article",
-            lastArticle.fetchSemanticsNode().boundsInRoot.bottom <=
-                homeTab.fetchSemanticsNode().boundsInRoot.top
+            "The floating navigation must not cover the placeholder",
+            title.fetchSemanticsNode().boundsInRoot.bottom <=
+                savedTab.fetchSemanticsNode().boundsInRoot.top
         )
+    }
+
+    @Test
+    fun backReturnsThroughPreviouslySelectedTabs() {
+        val labels = tabLabels()
+        composeRule.onNode(hasText(labels[1]) and hasClickAction()).performClick()
+        composeRule.onNodeWithTag("saved_screen").assertIsDisplayed()
+        composeRule.onNode(hasText(labels[2]) and hasClickAction()).performClick()
+        composeRule.onNodeWithTag("me_screen").assertIsDisplayed()
+
+        composeRule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        composeRule.onNodeWithTag("saved_screen").assertIsDisplayed()
+        composeRule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        composeRule.onNodeWithTag("home_screen").assertIsDisplayed()
+        composeRule.onNode(hasText(labels[0]) and hasClickAction()).assertIsSelected()
     }
 }
