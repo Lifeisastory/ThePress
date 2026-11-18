@@ -181,8 +181,8 @@ internal fun HomePage(
             )
             AppTabRow(
                 tabs = tabs,
-                selectedIndex = visiblePage,
-                onTabSelected = { index -> scope.launch { pagerState.scrollToPage(index) } },
+                pagerState = pagerState,
+                onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
                 backdrop = feedBackdrop,
                 modifier = Modifier.weight(1f).testTag("home_source_tabs")
             )

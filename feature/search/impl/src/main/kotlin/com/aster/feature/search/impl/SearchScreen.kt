@@ -93,10 +93,10 @@ internal fun SearchScreen(
     // 独立路由只考虑自身的系统栏和键盘，不预留 Main 的玻璃导航栏空间
     val safePadding = WindowInsets.safeDrawing.asPaddingValues()
     val contentPadding = PaddingValues(
-        start = 24.dp,
-        end = 24.dp,
-        top = maxOf(statusBarHeight(), safePadding.calculateTopPadding()) + 24.dp,
-        bottom = maxOf(navigationBarHeight(), safePadding.calculateBottomPadding()) + 16.dp
+        start = 8.dp,
+        end = 8.dp,
+        top = maxOf(statusBarHeight(), safePadding.calculateTopPadding()) + 8.dp,
+        bottom = maxOf(navigationBarHeight(), safePadding.calculateBottomPadding()) + 4.dp
     )
     val direction = LocalLayoutDirection.current
     val density = LocalDensity.current
