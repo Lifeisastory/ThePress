@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -49,12 +49,14 @@ internal fun HomeFeed(
             item(key = "status") {
                 FeedStatus(state, onRefreshAll, onRefreshSource)
             }
-            items(articles, key = { "article:${it.sourceId}:${it.id}" }) { article ->
+            itemsIndexed(articles, key = { _, article -> "article:${article.sourceId}:${article.id}" }) { index, article ->
                 NewsArticleCard(
                     article = article,
                     source = state.feeds.first { it.source.id == article.sourceId }.source,
                     onClick = { onOpenArticle(article.url) },
-                    modifier = Modifier.testTag("home_article_${article.sourceId}_${article.id}")
+                    modifier = Modifier.testTag("home_article_${article.sourceId}_${article.id}"),
+                    showSourceName = state.selectedSourceId == null,
+                    rank = if (state.selectedSourceId != null) index + 1 else null
                 )
             }
         }

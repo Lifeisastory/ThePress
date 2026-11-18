@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.aster.core.design_system.component.AppRankBadge
 import com.aster.core.model.NewsArticle
 import com.aster.core.model.NewsSource
 
@@ -30,7 +31,9 @@ fun NewsArticleCard(
     article: NewsArticle,
     source: NewsSource,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showSourceName: Boolean = true,
+    rank: Int? = null
 ) {
     val summary = article.summary
     val imageUrl = article.imageUrl
@@ -45,13 +48,17 @@ fun NewsArticleCard(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    source.name,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                if (rank != null) {
+                    AppRankBadge(rank = rank)
+                } else if (showSourceName) {
+                    Text(
+                        source.name,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
                     article.title,
                     style = MaterialTheme.typography.titleMedium,
