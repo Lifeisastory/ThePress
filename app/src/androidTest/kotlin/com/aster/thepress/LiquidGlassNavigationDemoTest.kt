@@ -99,7 +99,7 @@ class LiquidGlassNavigationDemoTest {
     }
 
     @Test
-    fun startingDragKeepsPressedCapsuleArea() {
+    fun startingDragKeepsCapsuleLiftedWithBoundedDeformation() {
         val tabs = composeRule.onNodeWithTag("liquid_glass_navigation_tabs")
         val indicator = composeRule.onNodeWithTag("liquid_glass_navigation_indicator")
         tabs.performTouchInput { down(Offset(width / 6f, centerY)) }
@@ -114,8 +114,8 @@ class LiquidGlassNavigationDemoTest {
                 composeRule.mainClock.advanceTimeByFrame()
                 val bounds = indicator.fetchSemanticsNode().boundsInRoot
                 assertTrue(
-                    "Inertial deformation must preserve the pressed capsule area",
-                    bounds.width * bounds.height >= pressedArea * 0.98f
+                    "The sample's velocity deformation must stay bounded while pressed",
+                    bounds.width * bounds.height in (pressedArea * 0.75f)..(pressedArea * 1.5f)
                 )
             }
         } finally {
@@ -125,7 +125,7 @@ class LiquidGlassNavigationDemoTest {
     }
 
     @Test
-    fun pullingPastEndMovesSurfaceWithoutResizingAndCancelRestoresIt() {
+    fun pullingPastEndMovesAndEnlargesSurfaceAndCancelRestoresIt() {
         val tabs = composeRule.onNodeWithTag("liquid_glass_navigation_tabs")
         val surface = composeRule.onNodeWithTag("liquid_glass_navigation_surface")
         val restingBounds = surface.fetchSemanticsNode().boundsInRoot
@@ -135,15 +135,18 @@ class LiquidGlassNavigationDemoTest {
         }
         composeRule.waitForIdle()
         val movedBounds = surface.fetchSemanticsNode().boundsInRoot
-        assertTrue("The surface must move toward the dragged edge", movedBounds.left > restingBounds.left + 1f)
-        assertTrue("Edge motion must preserve width", kotlin.math.abs(movedBounds.width - restingBounds.width) < 1f)
-        assertTrue("Edge motion must preserve height", kotlin.math.abs(movedBounds.height - restingBounds.height) < 1f)
+        assertTrue("The surface must move toward the dragged edge", movedBounds.center.x > restingBounds.center.x + 1f)
+        assertTrue("Pressing must enlarge the surface", movedBounds.width > restingBounds.width)
+        assertTrue("The sample scales the surface uniformly", kotlin.math.abs(
+            movedBounds.width / restingBounds.width - movedBounds.height / restingBounds.height
+        ) < 0.01f)
 
         tabs.performTouchInput { cancel() }
         composeRule.waitForIdle()
         val restoredBounds = surface.fetchSemanticsNode().boundsInRoot
         assertTrue("Cancel must restore surface position", kotlin.math.abs(restoredBounds.left - restingBounds.left) < 1f)
         assertTrue("Cancel must restore surface width", kotlin.math.abs(restoredBounds.width - restingBounds.width) < 1f)
+        assertTrue("Cancel must restore surface height", kotlin.math.abs(restoredBounds.height - restingBounds.height) < 1f)
     }
 
     @Test

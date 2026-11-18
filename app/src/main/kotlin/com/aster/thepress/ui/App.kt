@@ -1,22 +1,13 @@
 package com.aster.thepress.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -26,8 +17,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.aster.core.data.repository.NewsRepository
-import com.aster.core.design_system.component.AppNavigationBar
-import com.aster.core.design_system.component.AppNavigationItem
+import com.aster.core.design_system.component.liquid_glass.AppNavigationBar
+import com.aster.core.design_system.component.liquid_glass.AppNavigationItem
+import com.aster.core.design_system.component.SystemInsets
 import com.aster.thepress.navigation.AppNavHost
 import com.aster.thepress.navigation.TOP_LEVEL_NAV_ITEMS
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -40,34 +32,39 @@ internal fun App(
     appState: AppState = rememberAppState()
 ) {
     val keys = TOP_LEVEL_NAV_ITEMS.keys.toList()
-    val items = TOP_LEVEL_NAV_ITEMS.values.map { AppNavigationItem(stringResource(it.labelRes), it.icon) }
+    val items = TOP_LEVEL_NAV_ITEMS.values.map {
+        AppNavigationItem(
+            stringResource(it.labelRes),
+            it.icon
+        )
+    }
     val selectedIndex = keys.indexOf(appState.navigationState.currentTopLevelKey)
     val backgroundColor = MaterialTheme.colorScheme.background
     val backdrop = rememberLayerBackdrop {
         drawRect(backgroundColor)
         drawContent()
     }
-    val systemPadding = WindowInsets.safeDrawing.asPaddingValues()
     val density = LocalDensity.current
-    var navigationBarHeight by remember { mutableStateOf(104.dp) }
-
-    Box(modifier.fillMaxSize().background(backgroundColor)) {
+    var navigationBarHeightPx by remember { mutableIntStateOf(0) }
+    SystemInsets(
+        modifier = modifier.fillMaxSize(),
+        backgroundColor = backgroundColor
+    ) {
         // 记录导航宿主中的页面内容，玻璃栏仍作为独立的兄弟节点绘制
         AppNavHost(
             appState = appState,
             repository = repository,
+            // 系统安全区由外层统一避让，这里只预留页面间距和悬浮导航栏的实际高度
             contentPadding = PaddingValues(
                 start = 24.dp,
                 end = 24.dp,
-                top = systemPadding.calculateTopPadding() + 24.dp,
-                bottom = navigationBarHeight + 16.dp
+                top = 24.dp,
+                bottom = with(density) { navigationBarHeightPx.toDp() } + 16.dp
             ),
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
         )
-
         AppNavigationBar(
             items = items,
             selectedIndex = selectedIndex,
@@ -75,9 +72,7 @@ internal fun App(
             backdrop = backdrop,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .onSizeChanged { navigationBarHeight = with(density) { it.height.toDp() } }
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
-                .navigationBarsPadding()
+                .onSizeChanged { navigationBarHeightPx = it.height }
                 .padding(horizontal = 24.dp, vertical = 16.dp)
                 .widthIn(max = 420.dp)
         )
