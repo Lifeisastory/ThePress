@@ -42,7 +42,9 @@ import com.aster.feature.home.impl.HomePage
 import com.aster.feature.home.impl.SourceOrderDialog
 import com.aster.feature.home.impl.SourceOrderEditor
 import com.aster.feature.me.impl.ProfilePage
-import com.aster.feature.saved.impl.SavedPage
+import com.aster.feature.saved.impl.DigestPage
+import com.aster.core.data.repository.NewsDigestRepository
+import com.aster.core.data.repository.DigestSettingsRepository
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
@@ -50,6 +52,8 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 internal fun MainScreen(
     repository: NewsRepository,
     preferencesRepository: UserPreferencesRepository,
+    digestRepository: NewsDigestRepository,
+    digestSettingsRepository: DigestSettingsRepository,
     onOpenSearch: () -> Unit,
     onOpenArticle: (String) -> Unit,
     isActive: Boolean,
@@ -112,11 +116,13 @@ internal fun MainScreen(
                         onScrollToTopChanged = { homeScrollToTop = it },
                         onEditSourceOrder = { sourceOrderEditor = it }
                     )
-                    MainTab.Saved -> SavedPage(contentPadding)
+                    MainTab.Saved -> DigestPage(contentPadding, digestRepository, digestSettingsRepository,
+                        onOpenArticle, onOpenSettings = { selectedTab = MainTab.Profile })
                     MainTab.Profile -> ProfilePage(
                         contentPadding = contentPadding,
                         repository = repository,
                         preferencesRepository = preferencesRepository,
+                        digestSettingsRepository = digestSettingsRepository,
                         onOpenLink = onOpenArticle
                     )
                 }

@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -48,12 +46,16 @@ import com.aster.core.data.repository.UserPreferencesRepository
 import com.aster.core.design_system.component.AppLoadingIndicator
 import com.aster.core.model.ThemeColor
 import com.aster.core.model.ThemeMode
+import com.aster.core.data.repository.DigestSettingsRepository
+import com.aster.core.design_system.component.AppSettingsGroup as SettingsGroup
+import com.aster.core.ui.DigestSettingsContent
 
 @Composable
 fun ProfilePage(
     contentPadding: PaddingValues,
     repository: NewsRepository,
     preferencesRepository: UserPreferencesRepository,
+    digestSettingsRepository: DigestSettingsRepository,
     onOpenLink: (String) -> Unit
 ) {
     val factory = remember(repository, preferencesRepository) {
@@ -61,6 +63,9 @@ fun ProfilePage(
     }
     val viewModel: ProfileViewModel = viewModel(factory = factory)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val digestFactory = remember(digestSettingsRepository) { DigestSettingsViewModel.factory(digestSettingsRepository) }
+    val digestViewModel: DigestSettingsViewModel = viewModel(factory = digestFactory)
+    val digestState by digestViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var confirmClear by rememberSaveable { mutableStateOf(false) }
@@ -77,7 +82,7 @@ fun ProfilePage(
 
     Box(Modifier.fillMaxSize().testTag("profile_page")) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().testTag("profile_settings"),
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -131,6 +136,17 @@ fun ProfilePage(
                     if (state.appearanceReadFailed) {
                         Text(stringResource(R.string.profile_preferences_read_failed), color = MaterialTheme.colorScheme.error)
                     }
+                }
+            }
+            item {
+                SettingsGroup(stringResource(R.string.profile_digest)) {
+                    when {
+                        digestState.readFailed -> Text(stringResource(R.string.profile_preferences_read_failed), color = MaterialTheme.colorScheme.error)
+                        digestState.settings == null -> AppLoadingIndicator()
+                        else -> DigestSettingsContent(digestState.settings!!, repository.sources,
+                            digestState.saving, digestState.savedRevision, digestViewModel::save)
+                    }
+                    digestState.message?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall) }
                 }
             }
             item {
@@ -205,18 +221,6 @@ fun ProfilePage(
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = contentPadding.calculateBottomPadding()))
-    }
-}
-
-@Composable
-private fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, Modifier.padding(horizontal = 12.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-        Column(
-            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(24.dp)).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            content = content
-        )
     }
 }
 

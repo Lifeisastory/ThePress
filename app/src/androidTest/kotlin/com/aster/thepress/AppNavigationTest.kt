@@ -18,10 +18,22 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.platform.app.InstrumentationRegistry
 import com.aster.core.data.repository.NewsRepository
 import com.aster.core.data.repository.UserPreferencesRepository
+import com.aster.core.data.repository.NewsDigestRepository
+import com.aster.core.data.repository.DigestSettingsRepository
+import com.aster.core.model.DigestSettings
+import com.aster.core.model.NewsDigest
+import com.aster.core.model.DigestGenerationResult
+import com.aster.core.model.DigestDetail
+import com.aster.core.model.DigestItem
+import com.aster.core.model.DigestReference
+import com.aster.core.model.DigestSourceStatus
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onNodeWithText
 import com.aster.core.model.AppearanceSettings
 import com.aster.core.model.ThemeMode
 import com.aster.core.model.ThemeColor
@@ -51,6 +63,26 @@ class AppNavigationTest {
     val compose = createComposeRule()
 
     private val repository = TestNewsRepository()
+    private val digestSettings = object : DigestSettingsRepository {
+        override val settings = MutableStateFlow(DigestSettings())
+        override suspend fun save(settings: DigestSettings, apiKey: String?) {
+            this.settings.value = settings.copy(hasApiKey = apiKey?.isNotBlank() ?: this.settings.value.hasApiKey)
+        }
+    }
+    private var generations = 0
+    private val digestSnapshot = MutableStateFlow<NewsDigest?>(null)
+    private val digests = object : NewsDigestRepository {
+        override fun observeLatestDigest() = digestSnapshot
+        override suspend fun generateDigest(): DigestGenerationResult {
+            generations++
+            digestSnapshot.value = NewsDigest(123, "deepseek-flash", DigestDetail.STANDARD,
+                listOf(DigestSourceStatus("baidu", "百度", 1, false)), 1,
+                listOf(DigestItem("测试简报", "合并后的新闻内容", listOf(
+                    DigestReference("n1", "baidu", "百度", "1", "原始报道", "摘要", "https://example.com/digest")
+                ))))
+            return DigestGenerationResult.Success
+        }
+    }
     private val preferences = object : UserPreferencesRepository {
         override val appearance = MutableStateFlow(AppearanceSettings())
         override suspend fun saveThemeMode(mode: ThemeMode) { appearance.value = appearance.value.copy(mode = mode) }
@@ -66,7 +98,8 @@ class AppNavigationTest {
         restoration.setContent {
             appState = rememberAppState()
             backDispatcher = checkNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
-            AppTheme { App(repository = repository, preferencesRepository = preferences, appState = appState) }
+            AppTheme { App(repository = repository, preferencesRepository = preferences, appState = appState,
+                digestRepository = digests, digestSettingsRepository = digestSettings) }
         }
         compose.waitUntil { repository.observations >= 1 }
         compose.waitForIdle()
@@ -86,6 +119,39 @@ class AppNavigationTest {
     )
 
     @Test
+    fun digestSettingsGenerationAndCitationUseExistingWebViewNavigation() {
+        render()
+        selectTab(SavedR.string.feature_saved_title)
+        compose.onNodeWithTag("digest_generate").assertIsNotEnabled()
+        compose.onNodeWithTag("digest_open_settings").performClick()
+        scrollToProfileSetting("digest_api_key")
+        compose.onNodeWithTag("digest_api_key").performTextInput("test-key")
+        compose.onNodeWithTag("digest_api_key").performImeAction()
+        scrollToProfileSetting("digest_source_picker")
+        compose.onNodeWithTag("digest_source_picker").performClick()
+        scrollToProfileSetting("digest_source_baidu")
+        compose.onNodeWithTag("digest_source_baidu").performClick()
+        scrollToProfileSetting("digest_save_settings")
+        compose.onNodeWithTag("digest_save_settings").performClick()
+        compose.waitUntil { digestSettings.settings.value.hasApiKey }
+        compose.runOnIdle {
+            assertEquals(setOf("baidu"), digestSettings.settings.value.sourceIds)
+            assertEquals(0, generations)
+        }
+        selectTab(SavedR.string.feature_saved_title)
+        compose.onNodeWithTag("digest_generate").performClick()
+        compose.onNodeWithTag("saved_page").performScrollToNode(hasTestTag("digest_link_n1"))
+        compose.onNodeWithTag("digest_link_n1").performClick()
+        compose.onNodeWithTag("webview_screen").assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(listOf(MainNavKey, WebViewNavKey("https://example.com/digest")), appState.navigationState.backStack.toList())
+            assertEquals(1, generations)
+        }
+        compose.onNodeWithTag("webview_close").performClick()
+        compose.onNodeWithText("测试简报").assertIsDisplayed()
+    }
+
+    @Test
     fun tabSwitchesStayInsideMainAndBackReturnsDirectlyToHome() {
         render()
         selectTab(SavedR.string.feature_saved_title)
@@ -96,6 +162,17 @@ class AppNavigationTest {
         }
         compose.onNodeWithTag("home_page").assertIsDisplayed()
         tab(HomeR.string.feature_home_title).assertIsSelected()
+    }
+
+    // 列表视口延伸到悬浮导航栏后方，点击前将控件滚动到可交互区域
+    private fun scrollToProfileSetting(tag: String) {
+        val settings = compose.onNodeWithTag("profile_settings")
+        settings.performScrollToNode(hasTestTag(tag))
+        val bottom = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.bottom
+        val navigationTop = compose.onNodeWithTag("liquid_glass_navigation_tabs").fetchSemanticsNode().boundsInRoot.top
+        if (bottom > navigationTop - 32f) {
+            settings.performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, bottom - navigationTop + 32f) }
+        }
     }
 
     @Test

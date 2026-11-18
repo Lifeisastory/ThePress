@@ -4,6 +4,8 @@ import android.content.Context
 import com.aster.core.model.AppearanceSettings
 import com.aster.core.model.ThemeMode
 import com.aster.core.model.ThemeColor
+import com.aster.core.model.DigestSettings
+import com.aster.core.model.DigestDetail
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
@@ -24,6 +26,27 @@ private val Context.userPreferences by preferencesDataStore(
 /** 应用级偏好存储；业务层通过 core:data 的仓库访问。底层使用 DataStore */
 class AppSharedPreferences(context: Context) {
     private val store = context.applicationContext.userPreferences
+    private val keyCipher = ApiKeyCipher()
+
+    val digestSettings: Flow<DigestSettings> = store.data.map { preferences ->
+        DigestSettings(
+            sourceIds = decodeSourceOrder(preferences[DigestSourcesKey]).toSet(),
+            model = preferences[DigestModelKey] ?: "deepseek-flash",
+            detail = DigestDetail.entries.find { it.name == preferences[DigestDetailKey] } ?: DigestDetail.STANDARD,
+            hasApiKey = keyCipher.decrypt(preferences[DigestApiKey]).isNotBlank()
+        )
+    }.distinctUntilChanged()
+
+    val digestApiKey: Flow<String> = store.data.map { keyCipher.decrypt(it[DigestApiKey]) }
+
+    suspend fun saveDigestSettings(settings: DigestSettings, apiKey: String?) {
+        store.edit {
+            it[DigestSourcesKey] = JSONArray(settings.sourceIds.sorted()).toString()
+            it[DigestModelKey] = settings.model
+            it[DigestDetailKey] = settings.detail.name
+            if (apiKey != null) it[DigestApiKey] = keyCipher.encrypt(apiKey.trim())
+        }
+    }
 
     val appearance: Flow<AppearanceSettings> = store.data.map { preferences ->
         AppearanceSettings(
@@ -63,6 +86,10 @@ class AppSharedPreferences(context: Context) {
     }
 
     private companion object {
+        val DigestSourcesKey = stringPreferencesKey("digest_sources")
+        val DigestModelKey = stringPreferencesKey("digest_model")
+        val DigestDetailKey = stringPreferencesKey("digest_detail")
+        val DigestApiKey = stringPreferencesKey("digest_api_key_encrypted")
         val ThemeModeKey = stringPreferencesKey("theme_mode")
         val ThemeColorKey = stringPreferencesKey("theme_color")
         val SourceOrderKey = stringPreferencesKey("news_source_order")

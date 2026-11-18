@@ -10,6 +10,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.aster.core.localdb.dto.NewsCacheDao
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.CachedStockInfo
+import com.aster.core.localdb.entity.NewsDigestEntity
 import com.aster.core.localdb.entity.NewsCache
 import com.aster.core.localdb.entity.NewsCacheEntity
 import kotlinx.coroutines.runBlocking
@@ -153,6 +154,33 @@ class AppDataBaseTest {
             migrated.close()
             context.deleteDatabase(name)
         }
+    }
+
+    @Test
+    fun migratesVersionThreeAndKeepsDigestWhenNewsCacheIsCleared() = runBlocking {
+        val name = "news-digest-migration-test.db"
+        migrations.createDatabase(name, 3).apply {
+            execSQL("INSERT INTO news_cache (sourceId, fetchedAt) VALUES ('one', 123)")
+            execSQL("INSERT INTO cached_news_articles (sourceId, position, id, title, url, summary, stock_code, stock_price, stock_change, stock_changePercent) VALUES ('one', 0, 'old', 'Title', 'https://example.com', NULL, '00700', 372.8, -3.2, -0.85)")
+            close()
+        }
+        migrations.runMigrationsAndValidate(name, 4, true).close()
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val saved = NewsDigestEntity(payload = """{"items":[{"url":"https://example.com"}]}""")
+        try {
+            Room.databaseBuilder(context, AppDataBase::class.java, name).build().let { db ->
+                try {
+                    assertEquals(372.8, db.newsCacheDao().read("one")!!.articles.single().stockInfo!!.price, 0.0)
+                    assertNull(db.newsDigestDao().observeLatest().first())
+                    db.newsDigestDao().save(saved)
+                    db.newsCacheDao().clearCache()
+                    assertEquals(saved, db.newsDigestDao().observeLatest().first())
+                } finally { db.close() }
+            }
+            Room.databaseBuilder(context, AppDataBase::class.java, name).build().let { db ->
+                try { assertEquals(saved, db.newsDigestDao().observeLatest().first()) } finally { db.close() }
+            }
+        } finally { context.deleteDatabase(name) }
     }
 
     @Test

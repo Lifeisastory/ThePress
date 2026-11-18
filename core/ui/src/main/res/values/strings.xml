@@ -1,0 +1,19 @@
+<resources>
+    <string name="digest_original">未总结原文</string>
+    <string name="digest_sources">新闻来源</string>
+    <string name="digest_api_key">API Key</string>
+    <string name="digest_key_saved">已保存，留空可保留现有密钥</string>
+    <string name="digest_key_needed">填写你在 DeepSeek 平台申请的 API Key</string>
+    <string name="digest_remove_key">删除已保存的密钥</string>
+    <string name="digest_model">模型</string>
+    <string name="digest_detail">详细程度</string>
+    <string name="digest_brief">简洁</string>
+    <string name="digest_standard">标准</string>
+    <string name="digest_detailed">详细</string>
+    <string name="digest_selected_sources">选择数据源 · 已选 %1$d 个</string>
+    <string name="digest_select_all">全选</string>
+    <string name="digest_select_none">清空选择</string>
+    <string name="digest_save">保存简报设置</string>
+    <string name="digest_saving">正在保存</string>
+    <string name="digest_settings_hint">生成时会把所选来源的标题、摘要和链接一次发送给 DeepSeek，调用费用由你的 API 账户承担；仅在点击生成后调用</string>
+</resources>

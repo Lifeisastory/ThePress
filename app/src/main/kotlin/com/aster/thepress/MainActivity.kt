@@ -44,7 +44,8 @@ class MainActivity : ComponentActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
             }
             AppTheme(darkTheme = darkTheme, themeColor = settings.color) {
-                App(repository = data.newsRepository, preferencesRepository = data.userPreferencesRepository)
+                App(repository = data.newsRepository, preferencesRepository = data.userPreferencesRepository,
+                    digestRepository = data.newsDigestRepository, digestSettingsRepository = data.digestSettingsRepository)
             }
         }
     }

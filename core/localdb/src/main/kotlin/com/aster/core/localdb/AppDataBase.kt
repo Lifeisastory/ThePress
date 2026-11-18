@@ -8,15 +8,18 @@ import androidx.room.RoomDatabase
 import com.aster.core.localdb.dto.NewsCacheDao
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.NewsCacheEntity
+import com.aster.core.localdb.entity.NewsDigestEntity
+import com.aster.core.localdb.dto.NewsDigestDao
 
 @Database(
-    entities = [NewsCacheEntity::class, CachedNewsArticleEntity::class],
-    version = 3,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
+    entities = [NewsCacheEntity::class, CachedNewsArticleEntity::class, NewsDigestEntity::class],
+    version = 4,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)],
     exportSchema = true
 )
 abstract class AppDataBase : RoomDatabase() {
     abstract fun newsCacheDao(): NewsCacheDao
+    abstract fun newsDigestDao(): NewsDigestDao
 
     companion object {
         fun create(context: Context): AppDataBase = Room.databaseBuilder(

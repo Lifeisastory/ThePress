@@ -10,6 +10,11 @@ import com.aster.core.data.repository.UserPreferencesRepository
 import com.aster.core.localdb.AppDataBase
 import com.aster.core.localsp.AppSharedPreferences
 import com.aster.core.network.NetworkClient
+import com.aster.core.agent.DeepSeekClient
+import com.aster.core.data.repository.DigestSettingsRepository
+import com.aster.core.data.repository.DefaultDigestSettingsRepository
+import com.aster.core.data.repository.NewsDigestRepository
+import com.aster.core.data.repository.DefaultNewsDigestRepository
 
 /** 由 Application 持有一个实例，统一管理数据依赖；只向外暴露仓库 */
 class AppDataContainer(context: Context, private val logger: Logger = NoOpLogger) {
@@ -17,6 +22,15 @@ class AppDataContainer(context: Context, private val logger: Logger = NoOpLogger
     private val database by lazy { AppDataBase.create(appContext) }
     private val preferences by lazy { AppSharedPreferences(appContext) }
     private val networkClient by lazy { NetworkClient() }
+
+    val digestSettingsRepository: DigestSettingsRepository by lazy {
+        DefaultDigestSettingsRepository(preferences.digestSettings, preferences::saveDigestSettings, logger)
+    }
+
+    val newsDigestRepository: NewsDigestRepository by lazy {
+        DefaultNewsDigestRepository(newsRepository, digestSettingsRepository, preferences.digestApiKey,
+            database.newsDigestDao(), DeepSeekClient(), logger)
+    }
 
     val newsRepository: NewsRepository by lazy {
         OfflineFirstNewsRepository(networkClient, database.newsCacheDao(), logger = logger)
