@@ -49,6 +49,8 @@ dependencies {
     implementation(project(":feature:main:impl"))
     implementation(project(":feature:search:api"))
     implementation(project(":feature:search:impl"))
+    implementation(project(":feature:webview:api"))
+    implementation(project(":feature:webview:impl"))
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

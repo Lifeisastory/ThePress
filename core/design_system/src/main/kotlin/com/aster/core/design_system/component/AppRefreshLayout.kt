@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.aster.core.design_system.component.liquid_glass.AppRefreshIndicator
+import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlin.math.abs
@@ -50,6 +51,7 @@ import kotlin.math.abs
  *
  * 容器不会给列表添加安全区或内容 padding。[indicatorPadding] 仅定位覆盖层指示器，
  * 可传入页面顶部控件、底部导航栏的避让距离，保持列表的沉浸视口
+ * [indicatorBackdrop] 非空时使用外部背景，跳过内容录制，供 WebView 等原生视图使用
  */
 @Composable
 fun AppRefreshLayout(
@@ -63,10 +65,11 @@ fun AppRefreshLayout(
     enabled: Boolean = true,
     indicatorPadding: PaddingValues = PaddingValues(0.dp),
     threshold: Dp = 64.dp,
+    indicatorBackdrop: Backdrop? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     val backgroundColor = MaterialTheme.colorScheme.background
-    val indicatorBackdrop = rememberLayerBackdrop {
+    val contentBackdrop = rememberLayerBackdrop {
         drawRect(backgroundColor)
         drawContent()
     }
@@ -134,8 +137,10 @@ fun AppRefreshLayout(
                             if (!gesture.isTouching && event.changes.any { it.changedToDownIgnoreConsumed() }) {
                                 gesture.begin(currentEnabled, currentBusy)
                             }
+                            // 网页等内容的双指缩放不应在松手时触发刷新
+                            if (event.changes.count { it.pressed } > 1) gesture.block()
                             if (gesture.isTouching && event.changes.none { it.pressed }) {
-                                // Compose 的取消事件会将抬起变化预先消费；先记录，再等子组件处理完本帧。
+                                // Compose 的取消事件会将抬起变化预先消费；先记录，再等子组件处理完本帧
                                 val releasedNormally = event.changes.any { it.changedToUp() }
                                 awaitPointerEvent(PointerEventPass.Final)
                                 if (releasedNormally) {
@@ -155,8 +160,13 @@ fun AppRefreshLayout(
                 }
             }
     ) {
-        // 指示器只采样列表；独立于覆盖层记录，避免将玻璃自身重复录入背景。
-        Box(Modifier.fillMaxSize().layerBackdrop(indicatorBackdrop), content = content)
+        // 指示器只采样列表；独立于覆盖层记录，避免将玻璃自身重复录入背景
+        Box(
+            Modifier.fillMaxSize().then(
+                if (indicatorBackdrop == null) Modifier.layerBackdrop(contentBackdrop) else Modifier
+            ),
+            content = content
+        )
         // 只裁剪指示器的动画区域，不裁剪或缩小列表视口
         Box(Modifier.matchParentSize().padding(indicatorPadding).clipToBounds()) {
             if (fraction != 0f) {
@@ -167,7 +177,7 @@ fun AppRefreshLayout(
                     busy = if (atTop) isRefreshing else isLoadingMore,
                     hasMore = hasMore,
                     progress = progress,
-                    backdrop = indicatorBackdrop,
+                    backdrop = indicatorBackdrop ?: contentBackdrop,
                     modifier = Modifier
                         .align(if (atTop) Alignment.TopCenter else Alignment.BottomCenter)
                         .graphicsLayer {

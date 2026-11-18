@@ -1,0 +1,8 @@
+<resources>
+    <style name="ThemeOverlay.ThePress.WebView.Light" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:isLightTheme">true</item>
+    </style>
+    <style name="ThemeOverlay.ThePress.WebView.Dark" parent="android:Theme.Material.NoActionBar">
+        <item name="android:isLightTheme">false</item>
+    </style>
+</resources>

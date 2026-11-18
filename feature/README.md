@@ -1,18 +1,25 @@
 # Feature 模块与导航
 
-应用包含同级的 `MainScreen` 和 `SearchScreen` 独立路由页。Main 内包含 `HomePage`、`SavedPage`、`ProfilePage` 三个 Tab 页面，收藏和我的当前仅展示标题占位。独立路由页使用 `XxxScreen` 命名，内部页面使用 `XxxPage`；`ProfilePage` 暂保留在既有 `feature/me` 模块中。
+应用包含同级的 `MainScreen`、`SearchScreen` 和 `WebViewScreen` 独立路由页。Main 内包含 `HomePage`、`SavedPage`、`ProfilePage` 三个 Tab 页面，收藏和我的当前仅展示标题占位。独立路由页使用 `XxxScreen` 命名，内部页面使用 `XxxPage`；`ProfilePage` 暂保留在既有 `feature/me` 模块中。
 
 | 位置 | 职责 |
 | --- | --- |
-| `feature/*/api` | 对外资源；独立路由功能还提供可序列化的 `NavKey`（当前为 main、search） |
+| `feature/*/api` | 对外资源；独立路由功能还提供可序列化的 `NavKey`（当前为 main、search、webview） |
 | `feature/*/impl` | Page 或 Screen、ViewModel、UI 状态、资源和测试；独立路由提供 `EntryProvider` 注册函数 |
 | `core/navigation` | 应用单一返回栈、路由条目的状态保存与 ViewModel 生命周期、导航操作 |
-| `app/navigation` | Main／Search 的 `NavDisplay` 装配与跨路由跳转 |
+| `app/navigation` | Main／Search／WebView 的 `NavDisplay` 装配与跨路由跳转 |
 | `app/ui/App.kt` | 应用路由宿主入口 |
 | `feature/main/api` | MainNavKey，供应用设置起始路由与识别当前路由 |
 | `feature/main/impl` | MainScreen、MainTab、各 Page 的状态保存、系统边距、悬浮玻璃导航栏和 mainEntry 注册函数 |
+| `feature/webview/api`、`feature/webview/impl` | 携带 URL 的 WebViewNavKey、应用内网页、网页历史状态和 webViewEntry 注册函数 |
 
 Main 使用 `rememberSaveable` 保存选中 Tab，用 `SaveableStateHolder` 按 Tab 保存页面滚动位置等 UI 状态。首页 ViewModel 在 `HomePage` 中取得，归属 Main 路由条目的 ViewModelStore，切换 Tab 不会重新创建。搜索拥有独立的 ViewModel，出栈后释放；从搜索返回恢复 Main 原来的 Tab 和页面状态。普通 ViewModel 不负责进程死亡后的数据保存，进程重建后首页仍从仓库缓存恢复数据。
+
+首页和搜索的条目点击通过 `onOpenArticle(url)` 交给应用导航，统一打开 WebViewScreen。顶部悬浮栏使用 AppIconButton 返回／关闭按钮和与首页 Tab 栏同款效果的 AppTitleBar 标题胶囊，展示标题、域名和加载进度。网页滚动到顶部后通过 AppRefreshLayout 下拉刷新，失败时也可点击重试。RefreshWebView 将顶部单指下拉分发给 Compose 嵌套滚动，保留网页其他手势；刷新容器遇到多指操作会取消本次刷新。系统返回与工具栏返回优先回退网页历史，没有历史时退出路由，关闭按钮直接返回原列表。顶部控件避让状态栏，网页视口延伸到悬浮栏下方；底部避让系统栏和键盘，不显示 Main 底栏。网页历史通过 WebView.saveState/restoreState 随路由保存，实例在 AndroidView 释放时销毁，并随页面生命周期暂停／恢复。HTTP(S) 链接留在应用内，其他协议不自动拉起外部应用；允许 JavaScript 和 DOM 存储，关闭文件与 content URI 访问，不注入原生 JS 桥，不放行证书错误，也不改变应用的明文流量策略。
+
+WebView 的顶部玻璃控件与刷新指示器使用主题底色作为背景，不实时采样网页。AppRefreshLayout 接收外部 indicatorBackdrop 后跳过内容录制，避免原生 WebView 被重复绘制到离屏图层而闪动；普通列表仍使用原有的内容采样。
+
+AppTheme 通过 LocalAppDarkTheme 提供实际深浅色选择，WebView 使用独立的 Android 主题上下文同步 isLightTheme 和夜间配置。主题切换时重建 WebView 并恢复历史；网站自带的 prefers-color-scheme 样式优先，支持 ALGORITHMIC_DARKENING 的 WebView 在深色模式下允许自动暗化。网站显式禁用暗化或设备 WebView 不支持时保留站点样式，不保证所有网站都变为深色。
 
 Tab 切换不修改应用返回栈，也不保留 Tab 访问历史。系统返回先关闭独立路由；在 Main 的收藏或我的页面返回时切回首页，首页根页面交由 Activity 处理退出。主 Tab 通过底部玻璃栏切换，首页的水平滑动只用于切换数据源。
 
@@ -34,6 +41,6 @@ AppRefreshLayout 的 isRefreshing、isLoadingMore、hasMore 和请求回调均�
 
 界面固定文案按所属模块集中维护在 `src/main/res/values/strings.xml`：design_system 保存通用组件文案，core/ui 保存共享资讯 UI 文案，各 feature/impl 保存页面内部文案，feature/api 只公开跨模块使用的功能名称，app 保存应用名称等入口文案。MainTab 引用各 feature/api 的标题资源。Compose 使用 stringResource，非 Compose 场景使用资源 ID 或 getString；动态值使用格式占位符，按语义决定是否共享文案。
 
-新闻标题、摘要和来源名称属于数据，日志与异常中的诊断文字不作为界面文案提取。预览模拟内容可放入 debug 源集；UI 测试从资源读取界面标签，测试模拟数据保留在测试中。新闻原文打开失败的提示由 core/ui 的 ui_article_open_failed 统一提供。
+新闻标题、摘要和来源名称属于数据，日志与异常中的诊断文字不作为界面文案提取。预览模拟内容可放入 debug 源集；UI 测试从资源读取界面标签，测试模拟数据保留在测试中。网页加载失败与重试文案由 feature/webview/impl 管理。
 
 平台图标只维护在 `core/design_system/src/main/assets/source_icons`，沿用 Android 标准 assets 目录，无需额外的 Gradle 映射。AppIcon 使用 `file:///android_asset/source_icons/<platform-id>.png`，缺省图标为同目录下的 default.png；来源说明和许可文件随图标保留。

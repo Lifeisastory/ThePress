@@ -1,0 +1,4 @@
+<resources>
+    <style name="ThemeOverlay.ThePress.WebView.Light" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="ThemeOverlay.ThePress.WebView.Dark" parent="android:Theme.Material.NoActionBar" />
+</resources>

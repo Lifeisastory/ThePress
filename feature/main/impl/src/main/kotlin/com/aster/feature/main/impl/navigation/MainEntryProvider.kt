@@ -11,6 +11,7 @@ fun EntryProviderScope<NavKey>.mainEntry(
     repository: NewsRepository,
     preferencesRepository: UserPreferencesRepository,
     onOpenSearch: () -> Unit,
+    onOpenArticle: (String) -> Unit,
     isActive: () -> Boolean
 ) {
     entry<MainNavKey> {
@@ -18,6 +19,7 @@ fun EntryProviderScope<NavKey>.mainEntry(
             repository = repository,
             preferencesRepository = preferencesRepository,
             onOpenSearch = onOpenSearch,
+            onOpenArticle = onOpenArticle,
             isActive = isActive()
         )
     }

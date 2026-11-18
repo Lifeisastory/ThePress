@@ -8,9 +8,10 @@ import com.aster.feature.search.impl.SearchRoute
 
 fun EntryProviderScope<NavKey>.searchEntry(
     repository: NewsRepository,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenArticle: (String) -> Unit
 ) {
     entry<SearchNavKey> {
-        SearchRoute(repository, onBack)
+        SearchRoute(repository, onBack, onOpenArticle)
     }
 }

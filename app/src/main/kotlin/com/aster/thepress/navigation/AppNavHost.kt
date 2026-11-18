@@ -11,6 +11,8 @@ import com.aster.feature.main.api.navigation.MainNavKey
 import com.aster.feature.main.impl.navigation.mainEntry
 import com.aster.feature.search.api.navigation.SearchNavKey
 import com.aster.feature.search.impl.navigation.searchEntry
+import com.aster.feature.webview.api.navigation.WebViewNavKey
+import com.aster.feature.webview.impl.navigation.webViewEntry
 import com.aster.thepress.ui.AppState
 
 @Composable
@@ -25,11 +27,17 @@ internal fun AppNavHost(
             repository = repository,
             preferencesRepository = preferencesRepository,
             onOpenSearch = { appState.navigator.navigate(SearchNavKey) },
+            onOpenArticle = { appState.navigator.navigate(WebViewNavKey(it)) },
             isActive = { appState.navigationState.currentKey == MainNavKey }
         )
         searchEntry(
             repository = repository,
-            onBack = { appState.navigator.goBack() }
+            onBack = { appState.navigator.goBack() },
+            onOpenArticle = { appState.navigator.navigate(WebViewNavKey(it)) }
+        )
+        webViewEntry(
+            onBack = { appState.navigator.goBack() },
+            isActive = { appState.navigationState.currentKey == it }
         )
     }
     NavDisplay(

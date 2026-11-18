@@ -1,6 +1,5 @@
 package com.aster.feature.search.impl
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,11 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -54,30 +51,22 @@ import com.aster.core.design_system.component.liquid_glass.AppSearchBar
 import com.aster.core.ui.NewsArticleCard
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.aster.core.ui.R as UiR
 
 @Composable
 internal fun SearchRoute(
     repository: NewsRepository,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenArticle: (String) -> Unit
 ) {
     val factory = remember(repository) { SearchViewModel.factory(repository) }
     val viewModel: SearchViewModel = viewModel(factory = factory)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val uriHandler = LocalUriHandler.current
-    val context = LocalContext.current
     SearchScreen(
         state = state,
         onQueryChange = viewModel::setQuery,
         onSearch = viewModel::submitSearch,
         onBack = onBack,
-        onOpenArticle = { url ->
-            try {
-                uriHandler.openUri(url)
-            } catch (_: IllegalArgumentException) {
-                Toast.makeText(context, UiR.string.ui_article_open_failed, Toast.LENGTH_SHORT).show()
-            }
-        }
+        onOpenArticle = onOpenArticle
     )
 }
 
@@ -159,7 +148,10 @@ internal fun SearchScreen(
                 NewsArticleCard(
                     article = article,
                     source = sourcesById.getValue(article.sourceId),
-                    onClick = { onOpenArticle(article.url) },
+                    onClick = {
+                        focusManager.clearFocus()
+                        onOpenArticle(article.url)
+                    },
                     modifier = Modifier.testTag("search_article_${article.sourceId}_${article.id}")
                 )
             }

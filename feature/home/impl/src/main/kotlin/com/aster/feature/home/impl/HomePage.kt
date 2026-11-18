@@ -1,6 +1,5 @@
 package com.aster.feature.home.impl
 
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,10 +28,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -51,7 +48,6 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import com.aster.core.ui.R as UiR
 
 @Composable
 fun HomePage(
@@ -59,14 +55,13 @@ fun HomePage(
     preferencesRepository: UserPreferencesRepository,
     contentPadding: PaddingValues,
     onOpenSearch: () -> Unit,
+    onOpenArticle: (String) -> Unit,
     onScrollToTopChanged: ((() -> Unit)?) -> Unit = {},
     onEditSourceOrder: (SourceOrderEditor) -> Unit = {}
 ) {
-    val context = LocalContext.current
     val factory = remember(repository, preferencesRepository) { HomeViewModel.factory(repository, preferencesRepository) }
     val viewModel: HomeViewModel = viewModel(factory = factory)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val uriHandler = LocalUriHandler.current
     HomePage(
         state = state,
         contentPadding = contentPadding,
@@ -78,13 +73,7 @@ fun HomePage(
         onEditSourceOrder = {
             onEditSourceOrder(SourceOrderEditor(state.feeds.map { it.source }, viewModel::saveSourceOrder))
         },
-        onOpenArticle = { url ->
-            try {
-                uriHandler.openUri(url)
-            } catch (_: IllegalArgumentException) {
-                Toast.makeText(context, UiR.string.ui_article_open_failed, Toast.LENGTH_SHORT).show()
-            }
-        }
+        onOpenArticle = onOpenArticle
     )
 }
 

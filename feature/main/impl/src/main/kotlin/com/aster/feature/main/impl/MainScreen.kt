@@ -51,6 +51,7 @@ internal fun MainScreen(
     repository: NewsRepository,
     preferencesRepository: UserPreferencesRepository,
     onOpenSearch: () -> Unit,
+    onOpenArticle: (String) -> Unit,
     isActive: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -107,6 +108,7 @@ internal fun MainScreen(
                         preferencesRepository = preferencesRepository,
                         contentPadding = contentPadding,
                         onOpenSearch = onOpenSearch,
+                        onOpenArticle = onOpenArticle,
                         onScrollToTopChanged = { homeScrollToTop = it },
                         onEditSourceOrder = { sourceOrderEditor = it }
                     )

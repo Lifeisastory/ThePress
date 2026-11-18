@@ -12,10 +12,12 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.platform.app.InstrumentationRegistry
 import com.aster.core.data.repository.NewsRepository
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.flow
 import com.aster.core.design_system.theme.AppTheme
 import com.aster.feature.search.api.navigation.SearchNavKey
 import com.aster.feature.main.api.navigation.MainNavKey
+import com.aster.feature.webview.api.navigation.WebViewNavKey
 import com.aster.thepress.ui.App
 import com.aster.thepress.ui.AppState
 import com.aster.thepress.ui.rememberAppState
@@ -134,6 +137,50 @@ class AppNavigationTest {
     }
 
     @Test
+    fun articleOpensInWebViewAndClosingRestoresHomePosition() {
+        val restoration = render()
+        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
+        compose.onNodeWithTag("glass_tab_baidu").performClick()
+        onBaiduPage("home_feed").performScrollToIndex(15)
+        onBaiduPage("home_article_baidu_15").performClick()
+
+        compose.onNodeWithTag("webview_screen").assertIsDisplayed()
+        compose.onNodeWithTag("liquid_glass_navigation_tabs").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(
+                listOf(MainNavKey, WebViewNavKey("https://example.com/baidu/15")),
+                appState.navigationState.backStack.toList()
+            )
+        }
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithTag("webview_screen").assertIsDisplayed()
+        compose.onNodeWithTag("webview_close").performClick()
+        compose.onNodeWithTag("glass_tab_baidu").assertIsSelected()
+        onBaiduPage("home_article_baidu_15").assertIsDisplayed()
+    }
+
+    @Test
+    fun searchArticleOpensInWebViewAndBackRestoresResults() {
+        render()
+        compose.onNodeWithTag("home_search_button").performClick()
+        compose.onNodeWithTag("search_input").performTextInput("测试")
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("search_article_baidu_search").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("search_article_baidu_search").performClick()
+        compose.onNodeWithTag("webview_screen").assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(
+                listOf(MainNavKey, SearchNavKey, WebViewNavKey("https://example.com/search")),
+                appState.navigationState.backStack.toList()
+            )
+            backDispatcher.onBackPressed()
+        }
+        compose.onNodeWithTag("search_screen").assertIsDisplayed()
+        compose.onNodeWithTag("search_article_baidu_search").assertIsDisplayed()
+    }
+
+    @Test
     fun scrollToTopAppearsAfterOneViewportAndReturnsCurrentSourceToTop() {
         render()
         compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
@@ -179,7 +226,7 @@ class AppNavigationTest {
         onBaiduPage("home_article_baidu_0").assertIsDisplayed()
     }
 
-    /** 使用 data 的公开接口模拟数据；导航测试不接触数据库和网络。 */
+    /** 使用 data 的公开接口模拟列表，不依赖真实资讯接口和数据库；网页内容不参与断言。 */
     private class TestNewsRepository : NewsRepository {
         var observations = 0
         override val sources = listOf(NewsSource("qqvideo-tv-hotsearch", "腾讯视频"), NewsSource("baidu", "百度"))
@@ -191,7 +238,9 @@ class AppNavigationTest {
                 }
             })
         }
-        override fun search(query: String, sourceId: String?) = flowOf(emptyList<NewsArticle>())
+        override fun search(query: String, sourceId: String?) = flowOf(
+            listOf(NewsArticle("baidu", "search", "测试搜索文章", "https://example.com/search"))
+        )
         override suspend fun refresh(sourceId: String) = NewsRefreshResult.Success
     }
 }

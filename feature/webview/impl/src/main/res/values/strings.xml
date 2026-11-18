@@ -1,0 +1,8 @@
+<resources>
+    <string name="webview_title">原文</string>
+    <string name="webview_back">返回</string>
+    <string name="webview_close">关闭网页</string>
+    <string name="webview_load_failed">网页加载失败，请检查网络后重试</string>
+    <string name="webview_retry">重试</string>
+    <string name="webview_unsupported_link">暂不支持在应用内打开此类链接</string>
+</resources>
