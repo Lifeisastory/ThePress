@@ -7,5 +7,6 @@ data class SourceItem(
     val title: String,
     val url: String,
     val summary: String? = null,
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    val stockInfo: SourceStockInfo? = null
 )

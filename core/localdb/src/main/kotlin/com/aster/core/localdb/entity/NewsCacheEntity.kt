@@ -1,6 +1,7 @@
 package com.aster.core.localdb.entity
 
 import androidx.room.Entity
+import androidx.room.Embedded
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 
@@ -28,7 +29,15 @@ data class CachedNewsArticleEntity(
     val title: String,
     val url: String,
     val summary: String?,
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    @Embedded(prefix = "stock_") val stockInfo: CachedStockInfo? = null
+)
+
+data class CachedStockInfo(
+    val code: String,
+    val price: Double,
+    val change: Double,
+    val changePercent: Double
 )
 
 data class NewsCache(

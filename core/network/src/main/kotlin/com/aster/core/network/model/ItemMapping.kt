@@ -11,5 +11,6 @@ data class ItemMapping(
     val requiredRootValues: List<JsonFieldEquals> = emptyList(),
     val excludedItems: List<JsonFieldEquals> = emptyList(),
     val allowEmpty: Boolean = true,
-    val imagePath: JsonPath? = null
+    val imagePath: JsonPath? = null,
+    val stock: StockMapping? = null
 )

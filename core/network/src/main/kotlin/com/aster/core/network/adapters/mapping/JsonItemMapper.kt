@@ -2,6 +2,8 @@ package com.aster.core.network.adapters.mapping
 
 import com.aster.core.network.adapters.AdapterException
 import com.aster.core.network.dto.SourceItem
+import com.aster.core.network.dto.SourceStockInfo
+import com.aster.core.network.model.StockMapping
 import com.aster.core.network.model.ItemMapping
 import com.aster.core.network.model.ProcessingStage
 import com.aster.core.network.model.UrlMapping
@@ -48,10 +50,27 @@ class JsonItemMapper {
                         imageUrl.newBuilder().scheme("https").build()
                     } else imageUrl
                 }?.toString()
-            SourceItem(sourceId, id, title, url, rule.summaryPath?.let { text(item, it, false, index) }, image)
+            SourceItem(
+                sourceId, id, title, url, rule.summaryPath?.let { text(item, it, false, index) }, image,
+                stockInfo = rule.stock?.let { stockInfo(item, it) }
+            )
         }.distinctBy { it.id }
         if (!rule.allowEmpty && result.isEmpty()) fail("来源不允许返回空列表")
         return result
+    }
+
+    // 行情是可选增强；不完整或非法数据不伪造为零，也不使整个来源失败
+    private fun stockInfo(item: JsonElement, rule: StockMapping): SourceStockInfo? {
+        val code = (rule.codePath.read(item) as? JsonPrimitive)
+            ?.takeIf { it.isString }?.content?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        fun number(path: JsonPath) = (path.read(item) as? JsonPrimitive)
+            ?.content?.toDoubleOrNull()?.takeIf { it.isFinite() }
+        return SourceStockInfo(
+            code = code,
+            price = number(rule.pricePath)?.takeIf { it >= 0 } ?: return null,
+            change = number(rule.changePath) ?: return null,
+            changePercent = number(rule.changePercentPath) ?: return null
+        )
     }
 
     private fun text(item: JsonElement, path: JsonPath, required: Boolean, index: Int): String? {

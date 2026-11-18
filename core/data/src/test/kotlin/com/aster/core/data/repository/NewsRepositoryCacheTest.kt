@@ -4,6 +4,8 @@ import com.aster.core.analytics.Logger
 import com.aster.core.analytics.LogEvent
 import com.aster.core.model.NewsFailureReason
 import com.aster.core.model.NewsRefreshResult
+import com.aster.core.model.StockInfo
+import com.aster.core.network.model.StockMapping
 import com.aster.core.network.NetworkClient
 import com.aster.core.network.adapters.mapping.JsonPath
 import com.aster.core.network.model.HttpRequestSpec
@@ -63,7 +65,8 @@ class NewsRepositoryCacheTest {
         definitions = listOf("one", "two").map { id ->
             SourceDefinition(id, id, HttpRequestSpec(server.url("/$id")), ItemMapping(
                 JsonPath(""), JsonPath("id"), JsonPath("title"), UrlMapping.Field(JsonPath("url")),
-                imagePath = JsonPath("image")
+                imagePath = JsonPath("image"),
+                stock = StockMapping(JsonPath("code"), JsonPath("current"), JsonPath("chg"), JsonPath("percent"))
             ))
         },
         currentTimeMillis = { now },
@@ -87,6 +90,32 @@ class NewsRepositoryCacheTest {
 
     private fun enqueue(id: String) {
         server.enqueue(MockResponse(body = """[{"id":"$id","title":"Title $id","url":"https://example.com/$id"}]"""))
+    }
+
+    @Test(timeout = 10_000)
+    fun stockSurvivesRefreshCacheObservationSearchAndStructuredLogs() = runBlocking {
+        server.enqueue(MockResponse(body = """[{"id":"00700","title":"Stock","url":"/stock","code":"00700","current":372.8,"chg":-3.2,"percent":-0.85}]"""))
+        assertEquals(NewsRefreshResult.Success, repository.refresh("one"))
+        val expected = StockInfo("00700", 372.8, -3.2, -0.85)
+        assertEquals(expected, repository.observeNews().first().single().stockInfo)
+        val reopened = createRepository()
+        assertEquals(NewsRefreshResult.Success, reopened.refresh("one"))
+        assertEquals(expected, reopened.search("Stock", "one").first().single().stockInfo)
+        assertEquals(1, server.requestCount)
+        val responses = events.mapNotNull { it.response?.jsonObject?.get("articles")?.jsonArray }
+        assertTrue(responses.size >= 5) // 网络、写入、观察、缓存命中和搜索。
+        responses.forEach { articles ->
+            val stock = articles.single().jsonObject.getValue("stockInfo").jsonObject
+            assertEquals("00700", stock.getValue("code").jsonPrimitive.content)
+            assertEquals("372.8", stock.getValue("price").jsonPrimitive.content)
+            assertEquals("-3.2", stock.getValue("change").jsonPrimitive.content)
+            assertEquals("-0.85", stock.getValue("changePercent").jsonPrimitive.content)
+            assertEquals(false, stock.getValue("price").jsonPrimitive.isString)
+        }
+        now += 600_000
+        enqueue("ordinary")
+        repository.refresh("one")
+        assertNull(repository.observeNews().first().single().stockInfo)
     }
 
     @Test(timeout = 10_000)

@@ -141,6 +141,12 @@ internal fun List<NewsArticle>.asLogResponse(outcome: String = "SUCCESS"): JsonO
         put("url", article.url)
         put("summary", article.summary?.let(::JsonPrimitive) ?: JsonNull)
         put("imageUrl", article.imageUrl?.let(::JsonPrimitive) ?: JsonNull)
+        put("stockInfo", article.stockInfo?.let { stock -> buildJsonObject {
+            put("code", stock.code)
+            put("price", stock.price)
+            put("change", stock.change)
+            put("changePercent", stock.changePercent)
+        } } ?: JsonNull)
     } }))
 }
 
@@ -156,7 +162,7 @@ internal fun NewsRefreshResult.asLogResponse(): JsonObject = when (this) {
 internal fun NewsCache?.asLogResponse(fresh: Boolean): JsonObject = if (this == null) {
     buildJsonObject { put("outcome", "MISS") }
 } else {
-    val articles = articles.map { NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary, it.imageUrl) }
+    val articles = articles.map { it.toArticle() }
     JsonObject(articles.asLogResponse(if (fresh) "HIT" else "EXPIRED") +
         ("fetchedAt" to JsonPrimitive(metadata.fetchedAt)))
 }

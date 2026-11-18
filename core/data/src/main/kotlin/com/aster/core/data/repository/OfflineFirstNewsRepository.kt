@@ -74,9 +74,6 @@ internal class OfflineFirstNewsRepository(
         }
     }
 
-    private fun CachedNewsArticleEntity.toArticle() =
-        NewsArticle(sourceId, id, title, url, summary, imageUrl)
-
     override suspend fun refresh(sourceId: String): NewsRefreshResult {
         val lock = sourceLocks[sourceId] ?: return NewsRefreshResult.Failure(NewsFailureReason.INVALID_DATA)
         // 同一来源的并发调用在锁内重新检查缓存，不同来源仍可并行请求
@@ -101,7 +98,7 @@ internal class OfflineFirstNewsRepository(
         val result = requestLogging.trace(sourceId, "NETWORK", "FETCH", describe = { result ->
             when (result) {
                 is NetworkResult.Success -> result.data.map {
-                    NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary, it.imageUrl)
+                    it.toArticle()
                 }.asLogResponse()
                 is NetworkResult.Failure -> result.error.toRefreshFailure().asLogResponse()
             }
@@ -110,7 +107,7 @@ internal class OfflineFirstNewsRepository(
         }
         return when (result) {
             is NetworkResult.Success -> {
-                val articles = result.data.map { NewsArticle(it.sourceId, it.id, it.title, it.url, it.summary, it.imageUrl) }
+                val articles = result.data.map { it.toArticle() }
                 val persisted = accessCache(sourceId) {
                     requestLogging.trace(sourceId, "LOCAL_DATABASE", "WRITE", request = {
                         buildJsonObject {
@@ -122,7 +119,7 @@ internal class OfflineFirstNewsRepository(
                         cacheDao.replace(NewsCache(
                             metadata = NewsCacheEntity(sourceId, currentTimeMillis()),
                             articles = articles.mapIndexed { position, article ->
-                                CachedNewsArticleEntity(sourceId, position, article.id, article.title, article.url, article.summary, article.imageUrl)
+                                article.toCacheEntity(position)
                             }
                         ))
                     }

@@ -65,6 +65,7 @@ fun NewsArticleCard(
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
+                article.stockInfo?.let { StockInfoContent(it) }
                 if (!summary.isNullOrBlank()) {
                     Text(
                         summary,

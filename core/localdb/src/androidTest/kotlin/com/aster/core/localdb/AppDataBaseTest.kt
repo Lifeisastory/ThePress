@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.aster.core.localdb.dto.NewsCacheDao
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
+import com.aster.core.localdb.entity.CachedStockInfo
 import com.aster.core.localdb.entity.NewsCache
 import com.aster.core.localdb.entity.NewsCacheEntity
 import kotlinx.coroutines.runBlocking
@@ -132,6 +133,29 @@ class AppDataBaseTest {
     }
 
     @Test
+    fun migratesVersionTwoKeepingImagesAndInitializingStockAsNull() = runBlocking {
+        val name = "news-stock-migration-test.db"
+        migrations.createDatabase(name, 2).apply {
+            execSQL("INSERT INTO news_cache (sourceId, fetchedAt) VALUES ('one', 123)")
+            execSQL("INSERT INTO cached_news_articles (sourceId, position, id, title, url, summary, imageUrl) VALUES ('one', 0, 'old', 'Title', 'https://example.com/old', 'Summary', 'https://example.com/image.jpg')")
+            close()
+        }
+        migrations.runMigrationsAndValidate(name, 3, true).close()
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val migrated = Room.databaseBuilder(context, AppDataBase::class.java, name).build()
+        try {
+            val cache = migrated.newsCacheDao().read("one")!!
+            assertEquals(123L, cache.metadata.fetchedAt)
+            assertEquals("Summary", cache.articles.single().summary)
+            assertEquals("https://example.com/image.jpg", cache.articles.single().imageUrl)
+            assertNull(cache.articles.single().stockInfo)
+        } finally {
+            migrated.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    @Test
     fun readsInRankOrderAndReplacesOnlyTheRequestedSource() = runBlocking {
         assertNull(dao.read("one"))
         val first = snapshot("one", 10, "z", "a")
@@ -166,13 +190,22 @@ class AppDataBaseTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val name = "news-cache-persistence-test.db"
         context.deleteDatabase(name)
-        val expected = snapshot("one", 123, "first", "second")
+        val expected = snapshot("one", 123, "first", "second").let { cache ->
+            cache.copy(articles = cache.articles.mapIndexed { index, article ->
+                if (index == 0) article.copy(stockInfo = CachedStockInfo("00700", 372.8, -3.2, -0.85))
+                else article
+            })
+        }
         try {
             Room.databaseBuilder(context, AppDataBase::class.java, name).build().let { db ->
                 try { db.newsCacheDao().replace(expected) } finally { db.close() }
             }
             Room.databaseBuilder(context, AppDataBase::class.java, name).build().let { db ->
-                try { assertEquals(expected, db.newsCacheDao().read("one")) } finally { db.close() }
+                try {
+                    assertEquals(expected, db.newsCacheDao().read("one"))
+                    assertEquals(expected.articles, db.newsCacheDao().observeArticles().first())
+                    assertEquals(expected.articles, db.newsCacheDao().search("one", "%标题%").first())
+                } finally { db.close() }
             }
         } finally {
             context.deleteDatabase(name)
