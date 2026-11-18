@@ -1,11 +1,8 @@
 <resources>
     <string name="home_title">今天，读点好内容。</string>
-    <string name="home_search_hint">搜索本地已缓存内容</string>
-    <string name="home_clear_search">清空</string>
+    <string name="home_open_search">搜索</string>
+    <string name="home_current_source">当前来源：%1$s</string>
     <string name="home_all_sources">全部</string>
-    <string name="home_search_count">本地搜索 · %1$d 条结果</string>
-    <string name="home_search_empty">未找到匹配内容，可更换关键词或切换到“全部”。</string>
-    <string name="home_search_failed">暂时无法读取本地内容，请重试。</string>
     <string name="home_failed_sources">%1$d 个来源更新失败，已有内容已保留，可切换来源重试。</string>
     <string name="home_refresh_all">刷新全部</string>
     <string name="home_refresh_source">刷新</string>

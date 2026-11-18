@@ -9,12 +9,21 @@ android {
     buildFeatures {
         compose = true
     }
+
+}
+
+// 保留平台图标的现有目录，通过 AGP Variant API 将其注册为 assets。
+extensions.configure<com.android.build.api.variant.LibraryAndroidComponentsExtension> {
+    onVariants { variant ->
+        variant.sources.assets?.addStaticSourceDirectory("src/main/kotlin/com/aster/core/design_system/source_icons")
+    }
 }
 
 dependencies {
     // Backdrop is part of the navigation bar's public API.
     api(libs.kyant.backdrop)
     implementation(libs.kyant.shapes)
+    implementation(libs.coil.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.compose.material3)

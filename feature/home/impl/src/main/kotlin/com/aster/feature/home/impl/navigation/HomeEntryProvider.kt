@@ -7,8 +7,12 @@ import com.aster.core.data.repository.NewsRepository
 import com.aster.feature.home.api.navigation.HomeNavKey
 import com.aster.feature.home.impl.HomeRoute
 
-fun EntryProviderScope<NavKey>.homeEntry(repository: NewsRepository, contentPadding: PaddingValues) {
+fun EntryProviderScope<NavKey>.homeEntry(
+    repository: NewsRepository,
+    contentPadding: PaddingValues,
+    onOpenSearch: () -> Unit
+) {
     entry<HomeNavKey> {
-        HomeRoute(repository, contentPadding)
+        HomeRoute(repository, contentPadding, onOpenSearch)
     }
 }

@@ -1,0 +1,11 @@
+<resources>
+    <string name="search_hint">搜索全部来源</string>
+    <string name="search_clear">清空</string>
+    <string name="search_back">返回</string>
+    <string name="search_start_hint">输入关键词，搜索所有来源已缓存的资讯。</string>
+    <string name="search_count">全部来源 · %1$d 条结果</string>
+    <string name="search_empty">未找到匹配内容，请更换关键词。</string>
+    <string name="search_failed">暂时无法读取本地内容，请重试。</string>
+    <string name="search_retry">重试</string>
+    <string name="search_open_failed">未找到能够打开此链接的应用</string>
+</resources>

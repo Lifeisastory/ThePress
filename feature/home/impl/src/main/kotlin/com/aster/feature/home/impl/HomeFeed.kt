@@ -14,7 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,17 +32,13 @@ internal fun HomeFeed(
     onRefreshAll: () -> Unit,
     onRefreshSource: (String) -> Unit,
     onOpenArticle: (String) -> Unit,
-    onRetrySearch: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val savedLists = rememberSaveableStateHolder()
     val sourceKey = state.selectedSourceId ?: "all"
-    // 普通浏览与搜索各存一份位置，清空搜索后恢复原列表。
-    savedLists.SaveableStateProvider("$sourceKey:${state.isSearchMode}") {
+    // 各来源独立保存位置，进入搜索页不会改动首页列表状态
+    savedLists.SaveableStateProvider(sourceKey) {
         val listState = rememberLazyListState()
-        LaunchedEffect(state.query) {
-            if (state.isSearchMode) listState.scrollToItem(0)
-        }
         val articles = state.visibleArticles
         LazyColumn(
             state = listState,
@@ -52,24 +47,7 @@ internal fun HomeFeed(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "status") {
-                if (state.isSearchMode) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            stringResource(R.string.home_search_count, articles.size),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (state.isSearching) LinearProgressIndicator(Modifier.fillMaxWidth())
-                        if (state.searchFailed) {
-                            Text(stringResource(R.string.home_search_failed), color = MaterialTheme.colorScheme.error)
-                            TextButton(onClick = onRetrySearch) { Text(stringResource(R.string.home_retry)) }
-                        } else if (!state.isSearching && articles.isEmpty()) {
-                            Text(stringResource(R.string.home_search_empty))
-                        }
-                    }
-                } else {
-                    FeedStatus(state, onRefreshAll, onRefreshSource)
-                }
+                FeedStatus(state, onRefreshAll, onRefreshSource)
             }
             items(articles, key = { "article:${it.sourceId}:${it.id}" }) { article ->
                 NewsArticleCard(

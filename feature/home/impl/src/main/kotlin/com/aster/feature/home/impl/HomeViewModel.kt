@@ -9,27 +9,20 @@ import com.aster.core.model.NewsSource
 import com.aster.core.data.repository.NewsRepository
 import com.aster.feature.home.impl.model.HomeUiState
 import com.aster.feature.home.impl.model.SourceFeedUiState
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 internal class HomeViewModel(
     sources: List<NewsSource>,
     private val loadSource: suspend (String) -> NewsLoadResult,
-    private val readCached: suspend (String) -> List<NewsArticle>? = { null },
-    private val search: (String, String?) -> Flow<List<NewsArticle>> = { _, _ -> flowOf(emptyList()) }
+    private val readCached: suspend (String) -> List<NewsArticle>? = { null }
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState(sources.map { SourceFeedUiState(it, isLoading = true) }))
     val uiState = _uiState.asStateFlow()
     private val pending = linkedSetOf<String>()
     private val active = mutableSetOf<String>()
-    private var searchJob: Job? = null
     private var cacheLoaded = false
 
     init {
@@ -49,40 +42,9 @@ internal class HomeViewModel(
         if (sourceId != null && _uiState.value.feeds.none { it.source.id == sourceId }) return
         if (_uiState.value.selectedSourceId == sourceId) return
         _uiState.update { it.copy(selectedSourceId = sourceId) }
-        restartSearch(debounce = false)
         // 不重复抓取已加载来源；排队中的当前来源会在下一个空闲槽位优先执行
         drainRequests()
     }
-
-    fun setQuery(query: String) {
-        if (_uiState.value.query == query) return
-        _uiState.update { it.copy(query = query) }
-        restartSearch(debounce = true)
-    }
-
-    private fun restartSearch(debounce: Boolean) {
-        searchJob?.cancel()
-        val query = _uiState.value.query.trim()
-        val sourceId = _uiState.value.selectedSourceId
-        _uiState.update {
-            it.copy(searchResults = emptyList(), isSearching = query.isNotEmpty(), searchFailed = false)
-        }
-        if (query.isEmpty()) return
-        searchJob = viewModelScope.launch {
-            try {
-                if (debounce) delay(300)
-                search(query, sourceId).collect { articles ->
-                    _uiState.update { it.copy(searchResults = articles, isSearching = false) }
-                }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                _uiState.update { it.copy(isSearching = false, searchFailed = true) }
-            }
-        }
-    }
-
-    fun retrySearch() = restartSearch(debounce = false)
 
     fun refreshAll() {
         _uiState.value.feeds.forEach { enqueue(it.source.id) }
@@ -136,7 +98,7 @@ internal class HomeViewModel(
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 require(modelClass == HomeViewModel::class.java)
                 return modelClass.cast(HomeViewModel(
-                    repository.sources, repository::fetch, repository::readCached, repository::search
+                    repository.sources, repository::fetch, repository::readCached
                 ))!!
             }
         }

@@ -1,0 +1,24 @@
+Source: https://github.com/newsnext/newsnow
+Commit: 5da836c49c327f2c352216c5cbb4dea1abd9fcd3
+Upstream path: public/icons/<platform-id>.png
+Selection: 46 platforms used by ThePress plus default.png.
+Platform ID: source ID before the first hyphen.
+Original PNG files are unchanged. The following mislabeled files were re-encoded
+as PNG without cropping or resizing; transparency was preserved:
+  douban.png: ICO -> PNG, 32x32
+  douyin.png: ICO -> PNG, 32x32
+  fastbull.png: ICO -> PNG, 32x32
+  gelonghui.png: BMP -> PNG, 48x48
+  hupu.png: ICO -> PNG, 32x32
+  ifeng.png: JPEG -> PNG, 300x300
+  jin10.png: ICO -> PNG, 32x32
+  mktnews.png: ICO -> PNG, 59x63
+  steam.png: ICO -> PNG, 256x256
+  thepaper.png: ICO -> PNG, 32x32
+  toutiao.png: ICO -> PNG, 256x256
+  weibo.png: ICO -> PNG, 32x32
+  xueqiu.png: ICO -> PNG, 48x48
+  zaobao.png: ICO -> PNG, 64x64
+
+This directory is registered as an Android assets source in core/design_system/build.gradle.kts.
+Runtime URI: file:///android_asset/<platform-id>.png (default.png is the fallback).

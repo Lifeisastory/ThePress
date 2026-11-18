@@ -11,10 +11,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -47,12 +43,11 @@ class HomeViewModelTest {
 
     private fun viewModel(
         cached: suspend (String) -> List<NewsArticle>? = { null },
-        search: (String, String?) -> Flow<List<NewsArticle>> = { _, _ -> flowOf(emptyList()) },
         load: suspend (String) -> NewsLoadResult
     ): HomeViewModel {
         val factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                modelClass.cast(HomeViewModel(sources, load, cached, search))!!
+                modelClass.cast(HomeViewModel(sources, load, cached))!!
         }
         return ViewModelProvider(store, factory)[HomeViewModel::class.java]
     }
@@ -69,45 +64,6 @@ class HomeViewModelTest {
         runCurrent()
         assertEquals(listOf(cached), vm.uiState.value.feeds.last().articles)
         assertEquals(NewsFailureReason.CONNECTION, vm.uiState.value.feeds.last().error?.reason)
-    }
-
-    @Test
-    fun searchDebouncesCancelsOldResultsAndFiltersWithoutFetching() = runTest(dispatcher) {
-        val calls = mutableListOf<String>()
-        val searches = mutableListOf<Pair<String, String?>>()
-        val oldResults = MutableStateFlow(listOf(article("baidu", "old")))
-        val newResults = MutableStateFlow(listOf(article("baidu", "new")))
-        val vm = viewModel(search = { query, source ->
-            searches.add(query to source)
-            if (query == "旧") oldResults else newResults
-        }) {
-            calls.add(it)
-            NewsLoadResult.Success(listOf(article(it, "browse")))
-        }
-        runCurrent()
-        vm.setQuery("旧")
-        advanceTimeBy(300)
-        runCurrent()
-        assertEquals("old", vm.uiState.value.visibleArticles.single().id)
-        vm.setQuery("新")
-        assertTrue(vm.uiState.value.isSearching)
-        oldResults.value = listOf(article("baidu", "stale"))
-        runCurrent()
-        assertTrue(vm.uiState.value.visibleArticles.isEmpty())
-        vm.setQuery("新闻")
-        advanceTimeBy(300)
-        runCurrent()
-        assertEquals(listOf("旧" to null, "新闻" to null), searches)
-        vm.selectSource("baidu")
-        runCurrent()
-        assertEquals("新闻" to "baidu", searches.last())
-        newResults.value = listOf(article("baidu", "updated"))
-        runCurrent()
-        assertEquals("updated", vm.uiState.value.visibleArticles.single().id)
-        vm.setQuery("")
-        runCurrent()
-        assertEquals("browse", vm.uiState.value.visibleArticles.single().id)
-        assertEquals(sources.map { it.id }, calls)
     }
 
     @Test

@@ -39,6 +39,7 @@ internal fun App(
         )
     }
     val selectedIndex = keys.indexOf(appState.navigationState.currentTopLevelKey)
+    val showNavigationBar = appState.navigationState.currentKey in keys
     val backgroundColor = MaterialTheme.colorScheme.background
     val backdrop = rememberLayerBackdrop {
         drawRect(backgroundColor)
@@ -59,13 +60,13 @@ internal fun App(
                 start = 24.dp,
                 end = 24.dp,
                 top = 24.dp,
-                bottom = with(density) { navigationBarHeightPx.toDp() } + 16.dp
+                bottom = (if (showNavigationBar) with(density) { navigationBarHeightPx.toDp() } else 0.dp) + 16.dp
             ),
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
         )
-        AppNavigationBar(
+        if (showNavigationBar) AppNavigationBar(
             items = items,
             selectedIndex = selectedIndex,
             onItemSelected = { appState.navigator.navigate(keys[it]) },

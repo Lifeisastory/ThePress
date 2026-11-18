@@ -52,6 +52,8 @@ dependencies {
     implementation(project(":core:navigation"))
     implementation(project(":feature:home:api"))
     implementation(project(":feature:home:impl"))
+    implementation(project(":feature:search:api"))
+    implementation(project(":feature:search:impl"))
     implementation(project(":feature:saved:api"))
     implementation(project(":feature:saved:impl"))
     implementation(project(":feature:me:api"))
