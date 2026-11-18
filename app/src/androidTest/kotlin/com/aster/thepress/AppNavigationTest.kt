@@ -19,12 +19,13 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.platform.app.InstrumentationRegistry
 import com.aster.core.data.repository.NewsRepository
+import com.aster.core.data.repository.UserPreferencesRepository
+import com.aster.core.model.NewsArticle
+import com.aster.core.model.NewsSource
+import com.aster.core.model.NewsRefreshResult
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import com.aster.core.design_system.theme.AppTheme
-import com.aster.core.localdb.dto.NewsCacheDao
-import com.aster.core.localdb.entity.CachedNewsArticleEntity
-import com.aster.core.localdb.entity.NewsCacheEntity
-import com.aster.core.network.NetworkClient
-import com.aster.core.network.sources.BuiltInSources
 import com.aster.feature.search.api.navigation.SearchNavKey
 import com.aster.feature.main.api.navigation.MainNavKey
 import com.aster.thepress.ui.App
@@ -42,13 +43,11 @@ class AppNavigationTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val cache = CachedArticles()
-    private val repository = NewsRepository(
-        client = NetworkClient(),
-        cacheDao = cache,
-        definitions = BuiltInSources.all.take(2),
-        currentTimeMillis = { 1_000L }
-    )
+    private val repository = TestNewsRepository()
+    private val preferences = object : UserPreferencesRepository {
+        override val sourceOrder = MutableStateFlow<List<String>>(emptyList())
+        override suspend fun saveSourceOrder(sourceIds: List<String>) { sourceOrder.value = sourceIds }
+    }
     private lateinit var appState: AppState
     private lateinit var backDispatcher: OnBackPressedDispatcher
 
@@ -57,9 +56,9 @@ class AppNavigationTest {
         restoration.setContent {
             appState = rememberAppState()
             backDispatcher = checkNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
-            AppTheme { App(repository = repository, appState = appState) }
+            AppTheme { App(repository = repository, preferencesRepository = preferences, appState = appState) }
         }
-        compose.waitUntil { cache.reads >= 4 }
+        compose.waitUntil { repository.observations >= 1 }
         compose.waitForIdle()
         return restoration
     }
@@ -96,7 +95,7 @@ class AppNavigationTest {
         compose.onNodeWithTag("glass_tab_baidu").performClick()
         onBaiduPage("home_feed").performScrollToIndex(15)
         onBaiduPage("home_article_baidu_15").assertIsDisplayed()
-        val initialReads = cache.reads
+        val initialReads = repository.observations
 
         selectTab(SavedR.string.feature_saved_title)
         selectTab(HomeR.string.feature_home_title)
@@ -113,7 +112,7 @@ class AppNavigationTest {
         compose.onNodeWithTag("search_back").performClick()
         compose.onNodeWithTag("glass_tab_baidu").assertIsSelected()
         onBaiduPage("home_article_baidu_15").assertIsDisplayed()
-        compose.runOnIdle { assertEquals(initialReads, cache.reads) }
+        compose.runOnIdle { assertEquals(initialReads, repository.observations) }
     }
 
     @Test
@@ -180,29 +179,19 @@ class AppNavigationTest {
         onBaiduPage("home_article_baidu_0").assertIsDisplayed()
     }
 
-    /** 全部来源均有有效缓存，路由测试不依赖网络；记录读取次数以发现 ViewModel 被重建。 */
-    private class CachedArticles : NewsCacheDao() {
-        var reads = 0
-
-        override suspend fun metadata(sourceId: String): NewsCacheEntity {
-            reads++
-            return NewsCacheEntity(sourceId, 1_000L)
+    /** 使用 data 的公开接口模拟数据；导航测试不接触数据库和网络。 */
+    private class TestNewsRepository : NewsRepository {
+        var observations = 0
+        override val sources = listOf(NewsSource("qqvideo-tv-hotsearch", "腾讯视频"), NewsSource("baidu", "百度"))
+        override fun observeNews() = flow {
+            observations++
+            emit(sources.flatMap { source ->
+                (0..30).map { index ->
+                    NewsArticle(source.id, index.toString(), "测试文章 $index", "https://example.com/${source.id}/$index")
+                }
+            })
         }
-
-        override suspend fun articles(sourceId: String) = (0..30).map { index ->
-            CachedNewsArticleEntity(
-                sourceId = sourceId,
-                position = index,
-                id = index.toString(),
-                title = "测试文章 $index",
-                url = "https://example.com/$sourceId/$index",
-                summary = null
-            )
-        }
-
-        override fun search(sourceId: String?, pattern: String) = flowOf(emptyList<CachedNewsArticleEntity>())
-        override suspend fun upsertMetadata(metadata: NewsCacheEntity) = error("只读缓存")
-        override suspend fun deleteArticles(sourceId: String) = error("只读缓存")
-        override suspend fun insertArticles(articles: List<CachedNewsArticleEntity>) = error("只读缓存")
+        override fun search(query: String, sourceId: String?) = flowOf(emptyList<NewsArticle>())
+        override suspend fun refresh(sourceId: String) = NewsRefreshResult.Success
     }
 }

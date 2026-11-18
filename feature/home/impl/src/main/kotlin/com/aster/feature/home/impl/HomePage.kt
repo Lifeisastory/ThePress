@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aster.core.data.repository.NewsRepository
-import com.aster.core.localsp.SourceOrderPreferences
+import com.aster.core.data.repository.UserPreferencesRepository
 import com.aster.core.design_system.component.liquid_glass.AppIconButton
 import com.aster.core.design_system.component.liquid_glass.AppTab
 import com.aster.core.design_system.component.liquid_glass.AppTabRow
@@ -56,14 +56,14 @@ import com.aster.core.ui.R as UiR
 @Composable
 fun HomePage(
     repository: NewsRepository,
+    preferencesRepository: UserPreferencesRepository,
     contentPadding: PaddingValues,
     onOpenSearch: () -> Unit,
     onScrollToTopChanged: ((() -> Unit)?) -> Unit = {},
     onEditSourceOrder: (SourceOrderEditor) -> Unit = {}
 ) {
     val context = LocalContext.current
-    val preferences = remember(context.applicationContext) { SourceOrderPreferences(context.applicationContext) }
-    val factory = remember(repository, preferences) { HomeViewModel.factory(repository, preferences) }
+    val factory = remember(repository, preferencesRepository) { HomeViewModel.factory(repository, preferencesRepository) }
     val viewModel: HomeViewModel = viewModel(factory = factory)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current

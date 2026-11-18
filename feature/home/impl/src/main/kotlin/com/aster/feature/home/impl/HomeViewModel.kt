@@ -3,49 +3,78 @@ package com.aster.feature.home.impl
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.aster.core.model.NewsArticle
-import com.aster.core.model.NewsLoadResult
-import com.aster.core.model.NewsSource
 import com.aster.core.data.repository.NewsRepository
-import com.aster.core.localsp.SourceOrderPreferences
+import com.aster.core.data.repository.UserPreferencesRepository
+import com.aster.core.model.NewsFailureReason
+import com.aster.core.model.NewsRefreshResult
 import com.aster.feature.home.impl.model.HomeUiState
 import com.aster.feature.home.impl.model.SourceFeedUiState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
 
 internal class HomeViewModel(
-    sources: List<NewsSource>,
-    private val loadSource: suspend (String) -> NewsLoadResult,
-    private val readCached: suspend (String) -> List<NewsArticle>? = { null },
-    private val readSourceOrder: suspend () -> List<String> = { emptyList() },
-    private val persistSourceOrder: suspend (List<String>) -> Unit = {}
+    private val repository: NewsRepository,
+    private val preferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
+    private val defaultSourceIds = repository.sources.map { it.id }
     private val _uiState = MutableStateFlow(HomeUiState(
-        feeds = sources.map { SourceFeedUiState(it, isLoading = true) },
+        feeds = repository.sources.map { SourceFeedUiState(it, isLoading = true) },
         isSourceOrderLoaded = false
     ))
     val uiState = _uiState.asStateFlow()
     private val pending = linkedSetOf<String>()
     private val active = mutableSetOf<String>()
-    private var cacheLoaded = false
+    private var dataLoaded = false
+    private var observationJob: Job? = null
 
     init {
-        viewModelScope.launch {
-            val sourceOrder = readSourceOrder()
-            _uiState.update {
-                it.copy(feeds = orderFeeds(it.feeds, sourceOrder), isSourceOrderLoaded = true)
-            }
-            // 先恢复所有本地快照，再联网；过期数据在断网启动时仍可阅读
-            sources.forEach { source ->
-                readCached(source.id)?.let { articles ->
-                    updateSource(source.id) { it.copy(articles = articles) }
+        observeData()
+    }
+
+    private fun observeData() {
+        if (observationJob?.isActive == true) return
+        observationJob = viewModelScope.launch {
+            try {
+                combine(repository.observeNews(), preferencesRepository.sourceOrder) { articles, order ->
+                    articles.groupBy { it.sourceId } to order
+                }.collect { (articles, order) ->
+                    _uiState.update { state ->
+                        state.copy(
+                            feeds = orderFeeds(state.feeds, order).map { feed ->
+                                feed.copy(
+                                    articles = articles[feed.source.id].orEmpty(),
+                                    error = if (!dataLoaded && feed.error?.reason == NewsFailureReason.STORAGE) null else feed.error
+                                )
+                            },
+                            isSourceOrderLoaded = true
+                        )
+                    }
+                    // 首次恢复本地内容后才刷新；后续数据和排序变化不触发联网
+                    if (!dataLoaded) {
+                        dataLoaded = true
+                        _uiState.value.feeds.forEach { enqueue(it.source.id) }
+                        drainRequests()
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                dataLoaded = false
+                _uiState.update { state ->
+                    state.copy(
+                        feeds = state.feeds.map {
+                            it.copy(isLoading = false, error = NewsRefreshResult.Failure(NewsFailureReason.STORAGE))
+                        },
+                        isSourceOrderLoaded = false
+                    )
                 }
             }
-            cacheLoaded = true
-            refreshAll()
         }
     }
 
@@ -53,17 +82,15 @@ internal class HomeViewModel(
         if (sourceId != null && _uiState.value.feeds.none { it.source.id == sourceId }) return
         if (_uiState.value.selectedSourceId == sourceId) return
         _uiState.update { it.copy(selectedSourceId = sourceId) }
-        // 不重复抓取已加载来源；排队中的当前来源会在下一个空闲槽位优先执行
         drainRequests()
     }
 
-    /** 写入成功后再发布顺序，失败时保留原顺序供弹窗重试；选中来源始终按 ID 保留 */
+    /** 写入完成后由偏好流发布顺序；失败时保留原顺序供弹窗重试 */
     suspend fun saveSourceOrder(sourceIds: List<String>): Boolean {
         if (!_uiState.value.isSourceOrderLoaded) return false
         val orderedIds = orderFeeds(_uiState.value.feeds, sourceIds).map { it.source.id }
         return try {
-            persistSourceOrder(orderedIds)
-            _uiState.update { it.copy(feeds = orderFeeds(it.feeds, orderedIds)) }
+            preferencesRepository.saveSourceOrder(orderedIds)
             true
         } catch (_: IOException) {
             false
@@ -72,18 +99,20 @@ internal class HomeViewModel(
 
     private fun orderFeeds(feeds: List<SourceFeedUiState>, sourceIds: List<String>): List<SourceFeedUiState> {
         val byId = feeds.associateBy { it.source.id }
-        // 忽略失效、重复 ID；新加入的来源按默认顺序追加
-        return (sourceIds + byId.keys).distinct().mapNotNull(byId::get)
+        // 忽略失效、重复 ID；遗漏的来源始终按内置默认顺序追加
+        return (sourceIds + defaultSourceIds).distinct().mapNotNull(byId::get)
     }
 
     fun refreshAll() {
         _uiState.value.feeds.forEach { enqueue(it.source.id) }
+        if (!dataLoaded) observeData()
         drainRequests()
     }
 
     fun refresh(sourceId: String) {
         if (_uiState.value.feeds.none { it.source.id == sourceId }) return
         enqueue(sourceId)
+        if (!dataLoaded) observeData()
         drainRequests()
     }
 
@@ -93,21 +122,17 @@ internal class HomeViewModel(
     }
 
     private fun drainRequests() {
-        if (!cacheLoaded) return
+        if (!dataLoaded) return
         while (active.size < 4 && pending.isNotEmpty()) {
             val sourceId = _uiState.value.selectedSourceId?.takeIf { it in pending } ?: pending.first()
             pending.remove(sourceId)
             active.add(sourceId)
             viewModelScope.launch {
                 try {
-                    // 所有刷新都使用同一个 fetch，继续遵守仓库的十分钟缓存有效期
-                    when (val result = loadSource(sourceId)) {
-                        is NewsLoadResult.Success -> updateSource(sourceId) {
-                            it.copy(isLoading = false, articles = result.articles, error = null)
-                        }
-                        is NewsLoadResult.Failure -> updateSource(sourceId) {
-                            it.copy(isLoading = false, error = result)
-                        }
+                    val result = repository.refresh(sourceId)
+                    // 刷新结果不携带新闻；文章列表只由数据库观察流更新
+                    updateSource(sourceId) {
+                        it.copy(isLoading = false, error = result as? NewsRefreshResult.Failure)
                     }
                 } finally {
                     active.remove(sourceId)
@@ -126,17 +151,11 @@ internal class HomeViewModel(
     companion object {
         fun factory(
             repository: NewsRepository,
-            preferences: SourceOrderPreferences
+            preferencesRepository: UserPreferencesRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 require(modelClass == HomeViewModel::class.java)
-                return modelClass.cast(HomeViewModel(
-                    sources = repository.sources,
-                    loadSource = repository::fetch,
-                    readCached = repository::readCached,
-                    readSourceOrder = preferences::readSourceOrder,
-                    persistSourceOrder = preferences::saveSourceOrder
-                ))!!
+                return modelClass.cast(HomeViewModel(repository, preferencesRepository))!!
             }
         }
     }

@@ -9,5 +9,6 @@ data class LogEvent(
     val level: LogLevel = LogLevel.DEBUG,
     val attributes: Map<String, String> = emptyMap(),
     val cause: Throwable? = null,
-    val response: JsonElement? = null
+    val response: JsonElement? = null,
+    val request: JsonElement? = null
 )

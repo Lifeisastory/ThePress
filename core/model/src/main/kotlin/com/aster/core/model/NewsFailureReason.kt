@@ -4,5 +4,6 @@ enum class NewsFailureReason {
     CONNECTION,
     TIMEOUT,
     HTTP,
-    INVALID_DATA
+    INVALID_DATA,
+    STORAGE
 }

@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class NewsCacheDao {
+    @Query("SELECT * FROM cached_news_articles ORDER BY sourceId, position")
+    abstract fun observeArticles(): Flow<List<CachedNewsArticleEntity>>
+
     /** pattern 已转义；空来源表示查询所有来源，榜单内始终保留 position 顺序 */
     @Query("""
         SELECT * FROM cached_news_articles

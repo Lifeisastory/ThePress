@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.aster.core.data.repository.NewsRepository
+import com.aster.core.data.repository.UserPreferencesRepository
 import com.aster.core.navigation.toEntries
 import com.aster.feature.main.api.navigation.MainNavKey
 import com.aster.feature.main.impl.navigation.mainEntry
@@ -16,11 +17,13 @@ import com.aster.thepress.ui.AppState
 internal fun AppNavHost(
     appState: AppState,
     repository: NewsRepository,
+    preferencesRepository: UserPreferencesRepository,
     modifier: Modifier = Modifier
 ) {
     val provider = entryProvider {
         mainEntry(
             repository = repository,
+            preferencesRepository = preferencesRepository,
             onOpenSearch = { appState.navigator.navigate(SearchNavKey) },
             isActive = { appState.navigationState.currentKey == MainNavKey }
         )

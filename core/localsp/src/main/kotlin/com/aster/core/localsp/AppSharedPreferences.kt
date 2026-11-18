@@ -6,9 +6,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import java.io.IOException
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONException
 
@@ -18,15 +18,17 @@ private val Context.userPreferences by preferencesDataStore(
     corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() }
 )
 
-/** 只存储有序来源 ID；来源增删及默认顺序由调用方处理 */
-class SourceOrderPreferences(context: Context) {
+/** 应用级偏好存储；业务层通过 core:data 的仓库访问。底层使用 DataStore */
+class AppSharedPreferences(context: Context) {
     private val store = context.applicationContext.userPreferences
 
-    suspend fun readSourceOrder(): List<String> {
-        val preferences = store.data.catch { error ->
-            if (error is IOException) emit(emptyPreferences()) else throw error
-        }.first()
-        val value = preferences[SourceOrderKey] ?: return emptyList()
+    // 读取错误向上传递，让订阅方显式重试，避免发出默认值后永久停止观察
+    val sourceOrder: Flow<List<String>> = store.data.map { preferences ->
+        decodeSourceOrder(preferences[SourceOrderKey])
+    }.distinctUntilChanged()
+
+    private fun decodeSourceOrder(value: String?): List<String> {
+        if (value == null) return emptyList()
         return try {
             val array = JSONArray(value)
             (0 until array.length()).mapNotNull { index ->

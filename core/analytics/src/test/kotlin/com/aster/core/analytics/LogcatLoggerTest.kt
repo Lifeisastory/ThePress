@@ -100,4 +100,21 @@ class LogcatLoggerTest {
         }
         assertEquals(LogFormatter.format(event), messages.joinToString("") { it.substringAfter("] ") })
     }
+
+    @Test
+    fun structuredRequestsUseTheSameFormattingAndRedactionAsResponses() {
+        val formatted = LogFormatter.format(LogEvent("request_started", "request", request = buildJsonObject {
+            put("sourceIds", buildJsonArray { add(kotlinx.serialization.json.JsonPrimitive("baidu")) })
+            put("query", "新闻\n标题")
+            put("options", buildJsonObject {
+                put("url", "https://user:private-password@example.com/feed?token=private-token")
+                put("Authorization", "private-header")
+            })
+        }))
+        val request = Json.parseToJsonElement(formatted.substringAfter("request=\n"))
+        assertTrue(request.toString().contains("\"sourceIds\":[\"baidu\"]"))
+        assertTrue(formatted.contains("https://example.com/feed"))
+        assertTrue(formatted.contains("[REDACTED]"))
+        assertFalse(formatted.contains("private-"))
+    }
 }

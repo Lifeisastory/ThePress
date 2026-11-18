@@ -16,6 +16,10 @@ internal class FakeNewsCacheDao : NewsCacheDao() {
     var searchPattern: String? = null
     var searchSourceId: String? = null
 
+    override fun observeArticles() = changes.map {
+        articles.values.flatten().sortedWith(compareBy<CachedNewsArticleEntity> { it.sourceId }.thenBy { it.position })
+    }
+
     override fun search(sourceId: String?, pattern: String) = changes.map {
         searchPattern = pattern
         searchSourceId = sourceId

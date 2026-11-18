@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import com.aster.core.data.repository.NewsRepository
+import com.aster.core.data.repository.UserPreferencesRepository
 import com.aster.core.design_system.component.SystemInsets
 import com.aster.core.design_system.component.navigationBarHeight
 import com.aster.core.design_system.component.statusBarHeight
@@ -48,6 +49,7 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 @Composable
 internal fun MainScreen(
     repository: NewsRepository,
+    preferencesRepository: UserPreferencesRepository,
     onOpenSearch: () -> Unit,
     isActive: Boolean,
     modifier: Modifier = Modifier
@@ -102,6 +104,7 @@ internal fun MainScreen(
                 when (selectedTab) {
                     MainTab.Home -> HomePage(
                         repository = repository,
+                        preferencesRepository = preferencesRepository,
                         contentPadding = contentPadding,
                         onOpenSearch = onOpenSearch,
                         onScrollToTopChanged = { homeScrollToTop = it },

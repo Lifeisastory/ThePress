@@ -1,12 +1,17 @@
 package com.aster.feature.home.impl
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import com.aster.core.model.NewsArticle
 import com.aster.core.model.NewsFailureReason
-import com.aster.core.model.NewsLoadResult
+import com.aster.core.model.NewsRefreshResult
 import com.aster.core.model.NewsSource
+import com.aster.core.data.repository.NewsRepository
+import com.aster.core.data.repository.UserPreferencesRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,15 +46,30 @@ class HomeViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(
-        cached: suspend (String) -> List<NewsArticle>? = { null },
-        load: suspend (String) -> NewsLoadResult
-    ): HomeViewModel {
-        val factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                modelClass.cast(HomeViewModel(sources, load, cached))!!
+    private val articles = MutableStateFlow<List<NewsArticle>>(emptyList())
+    private val preferences = FakePreferences()
+
+    private class FakePreferences : UserPreferencesRepository {
+        override val sourceOrder = MutableStateFlow<List<String>>(emptyList())
+        var failure: IOException? = null
+        override suspend fun saveSourceOrder(sourceIds: List<String>) {
+            failure?.let { throw it }
+            sourceOrder.value = sourceIds
         }
-        return ViewModelProvider(store, factory)[HomeViewModel::class.java]
+    }
+
+    private fun viewModel(
+        sources: List<NewsSource> = this.sources,
+        observe: () -> Flow<List<NewsArticle>> = { articles },
+        load: suspend (String) -> NewsRefreshResult
+    ): HomeViewModel {
+        val repository = object : NewsRepository {
+            override val sources = sources
+            override fun observeNews() = observe()
+            override fun search(query: String, sourceId: String?) = articles
+            override suspend fun refresh(sourceId: String) = load(sourceId)
+        }
+        return ViewModelProvider(store, HomeViewModel.factory(repository, preferences))[HomeViewModel::class.java]
     }
 
     private fun article(sourceId: String, id: String = "1") =
@@ -58,8 +78,9 @@ class HomeViewModelTest {
     @Test
     fun expiredSnapshotIsVisibleWhenStartupRefreshFails() = runTest(dispatcher) {
         val cached = article("baidu", "cached")
-        val vm = viewModel(cached = { if (it == "baidu") listOf(cached) else null }) {
-            NewsLoadResult.Failure(NewsFailureReason.CONNECTION)
+        articles.value = listOf(cached)
+        val vm = viewModel {
+            NewsRefreshResult.Failure(NewsFailureReason.CONNECTION)
         }
         runCurrent()
         assertEquals(listOf(cached), vm.uiState.value.feeds.last().articles)
@@ -69,21 +90,16 @@ class HomeViewModelTest {
     @Test
     fun limitsConcurrencyAndPrioritizesSelectedQueuedSource() = runTest(dispatcher) {
         val many = (1..8).map { NewsSource(it.toString(), "来源 $it") }
-        val responses = many.associate { it.id to CompletableDeferred<NewsLoadResult>() }
+        val responses = many.associate { it.id to CompletableDeferred<NewsRefreshResult>() }
         val calls = mutableListOf<String>()
-        val factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T = modelClass.cast(
-                HomeViewModel(many, loadSource = {
-                    calls.add(it)
-                    responses.getValue(it).await()
-                })
-            )!!
+        val vm = viewModel(sources = many) {
+            calls.add(it)
+            responses.getValue(it).await()
         }
-        val vm = ViewModelProvider(store, factory)[HomeViewModel::class.java]
         runCurrent()
         assertEquals(listOf("1", "2", "3", "4"), calls)
         vm.selectSource("8")
-        responses.getValue("1").complete(NewsLoadResult.Success(emptyList()))
+        responses.getValue("1").complete(NewsRefreshResult.Success)
         runCurrent()
         assertEquals(listOf("1", "2", "3", "4", "8"), calls)
         vm.refresh("8")
@@ -96,18 +112,19 @@ class HomeViewModelTest {
 
     @Test
     fun sourcesLoadIndependentlyAndOneFailureDoesNotHideTheOther() = runTest(dispatcher) {
-        val responses = sources.associate { it.id to CompletableDeferred<NewsLoadResult>() }
+        val responses = sources.associate { it.id to CompletableDeferred<NewsRefreshResult>() }
         val viewModel = viewModel { responses.getValue(it).await() }
         runCurrent()
         assertTrue(viewModel.uiState.value.feeds.all { it.isLoading })
 
-        responses.getValue(sources.first().id).complete(NewsLoadResult.Failure(NewsFailureReason.CONNECTION))
+        responses.getValue(sources.first().id).complete(NewsRefreshResult.Failure(NewsFailureReason.CONNECTION))
         runCurrent()
         assertFalse(viewModel.uiState.value.feeds.first().isLoading)
         assertTrue(viewModel.uiState.value.feeds.last().isLoading)
 
         val news = article("baidu")
-        responses.getValue("baidu").complete(NewsLoadResult.Success(listOf(news)))
+        articles.value = listOf(news)
+        responses.getValue("baidu").complete(NewsRefreshResult.Success)
         runCurrent()
         assertEquals(NewsFailureReason.CONNECTION, viewModel.uiState.value.feeds.first().error?.reason)
         assertEquals(listOf(news), viewModel.uiState.value.feeds.last().articles)
@@ -116,7 +133,7 @@ class HomeViewModelTest {
 
     @Test
     fun repeatedRefreshDoesNotDuplicateActiveRequestsAndRetryTargetsOneSource() = runTest(dispatcher) {
-        val responses = sources.associate { it.id to CompletableDeferred<NewsLoadResult>() }
+        val responses = sources.associate { it.id to CompletableDeferred<NewsRefreshResult>() }
         val calls = mutableListOf<String>()
         val viewModel = viewModel {
             calls.add(it)
@@ -126,7 +143,7 @@ class HomeViewModelTest {
         runCurrent()
         assertEquals(sources.map { it.id }, calls)
 
-        responses.values.forEach { it.complete(NewsLoadResult.Success(emptyList())) }
+        responses.values.forEach { it.complete(NewsRefreshResult.Success) }
         runCurrent()
         viewModel.refresh("baidu")
         runCurrent()
@@ -138,13 +155,14 @@ class HomeViewModelTest {
     fun refreshFailureKeepsOldContentAndSuccessfulRetryReplacesIt() = runTest(dispatcher) {
         val old = article("baidu", "old")
         val fresh = article("baidu", "fresh")
+        articles.value = listOf(old)
         val responses = ArrayDeque(listOf(
-            NewsLoadResult.Success(listOf(old)),
-            NewsLoadResult.Failure(NewsFailureReason.TIMEOUT),
-            NewsLoadResult.Success(listOf(fresh))
+            NewsRefreshResult.Success,
+            NewsRefreshResult.Failure(NewsFailureReason.TIMEOUT),
+            NewsRefreshResult.Success
         ))
         val viewModel = viewModel {
-            if (it == "baidu") responses.removeFirst() else NewsLoadResult.Success(emptyList())
+            if (it == "baidu") responses.removeFirst() else NewsRefreshResult.Success
         }
         runCurrent()
         viewModel.refresh("baidu")
@@ -153,6 +171,10 @@ class HomeViewModelTest {
         assertEquals(NewsFailureReason.TIMEOUT, viewModel.uiState.value.feeds.last().error?.reason)
 
         viewModel.refresh("baidu")
+        runCurrent()
+        // 刷新成功不会直接替换文章，必须等数据库流发出已落库的内容。
+        assertEquals(listOf(old), viewModel.uiState.value.feeds.last().articles)
+        articles.value = listOf(fresh)
         runCurrent()
         assertEquals(listOf(fresh), viewModel.uiState.value.feeds.last().articles)
         assertNull(viewModel.uiState.value.feeds.last().error)
@@ -172,5 +194,60 @@ class HomeViewModelTest {
         store.clear()
         runCurrent()
         assertEquals(sources.map { it.id }.toSet(), canceled)
+    }
+
+    @Test
+    fun databaseAndPreferenceUpdatesDoNotTriggerExtraRefreshes() = runTest(dispatcher) {
+        val calls = mutableListOf<String>()
+        val vm = viewModel { calls.add(it); NewsRefreshResult.Success }
+        runCurrent()
+        vm.selectSource("baidu")
+        articles.value = listOf(article("baidu", "external"))
+        preferences.sourceOrder.value = listOf("baidu", "removed", "baidu")
+        runCurrent()
+        assertEquals(listOf("baidu", sources.first().id), vm.uiState.value.feeds.map { it.source.id })
+        assertEquals("external", vm.uiState.value.feeds.first().articles.single().id)
+        assertEquals("baidu", vm.uiState.value.selectedSourceId)
+        assertEquals(sources.map { it.id }, calls)
+
+        preferences.sourceOrder.value = emptyList()
+        articles.value = emptyList()
+        runCurrent()
+        assertEquals(sources.map { it.id }, vm.uiState.value.feeds.map { it.source.id })
+        assertTrue(vm.uiState.value.feeds.all { it.articles.isEmpty() })
+        assertEquals(2, calls.size)
+    }
+
+    @Test
+    fun sourceOrderSaveFailureKeepsOrderAndSuccessfulRetryIsObserved() = runTest(dispatcher) {
+        val vm = viewModel { NewsRefreshResult.Success }
+        assertFalse(vm.saveSourceOrder(listOf("baidu")))
+        runCurrent()
+        preferences.failure = IOException("disk full")
+        assertFalse(vm.saveSourceOrder(listOf("baidu")))
+        runCurrent()
+        assertEquals(sources.map { it.id }, vm.uiState.value.feeds.map { it.source.id })
+
+        preferences.failure = null
+        assertTrue(vm.saveSourceOrder(listOf("baidu", "removed", "baidu")))
+        runCurrent()
+        assertEquals(listOf("baidu", sources.first().id), vm.uiState.value.feeds.map { it.source.id })
+        assertEquals(listOf("baidu", sources.first().id), preferences.sourceOrder.value)
+    }
+
+    @Test
+    fun databaseReadFailureCanBeRetriedWithoutRecreatingViewModel() = runTest(dispatcher) {
+        var fail = true
+        val vm = viewModel(observe = {
+            if (fail) flow { throw IOException("unavailable") } else articles
+        }) { NewsRefreshResult.Success }
+        runCurrent()
+        assertTrue(vm.uiState.value.feeds.all { it.error?.reason == NewsFailureReason.STORAGE })
+        fail = false
+        articles.value = listOf(article("baidu", "recovered"))
+        vm.refreshAll()
+        runCurrent()
+        assertEquals("recovered", vm.uiState.value.feeds.last().articles.single().id)
+        assertTrue(vm.uiState.value.feeds.all { it.error == null && !it.isLoading })
     }
 }

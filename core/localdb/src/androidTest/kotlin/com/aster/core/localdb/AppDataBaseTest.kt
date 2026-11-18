@@ -28,16 +28,16 @@ import org.junit.Rule
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class NewsDatabaseTest {
+class AppDataBaseTest {
     @get:Rule
-    val migrations = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), NewsDatabase::class.java)
-    private lateinit var database: NewsDatabase
+    val migrations = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDataBase::class.java)
+    private lateinit var database: AppDataBase
     private lateinit var dao: NewsCacheDao
 
     @Before
     fun setUp() {
         database = Room.inMemoryDatabaseBuilder(
-            ApplicationProvider.getApplicationContext(), NewsDatabase::class.java
+            ApplicationProvider.getApplicationContext(), AppDataBase::class.java
         ).build()
         dao = database.newsCacheDao()
     }
@@ -96,6 +96,24 @@ class NewsDatabaseTest {
     }
 
     @Test
+    fun observedArticlesReplaceWholeSnapshotsAndKeepOtherSources() = runBlocking {
+        dao.replace(snapshot("one", 10, "old"))
+        dao.replace(snapshot("two", 10, "other"))
+        val initial = CompletableDeferred<Unit>()
+        val updates = async {
+            withTimeout(5_000) {
+                dao.observeArticles().onEach { initial.complete(Unit) }.take(2).toList()
+            }
+        }
+        initial.await()
+        dao.replace(snapshot("one", 20, "new", "next"))
+        assertEquals(listOf(listOf("old", "other"), listOf("new", "next", "other")),
+            updates.await().map { rows -> rows.map { it.id } })
+        dao.replace(snapshot("one", 30))
+        assertEquals(listOf("other"), dao.observeArticles().first().map { it.id })
+    }
+
+    @Test
     fun migratesVersionOneWithoutLosingCachedArticles() {
         val name = "news-migration-test.db"
         migrations.createDatabase(name, 1).apply {
@@ -150,10 +168,10 @@ class NewsDatabaseTest {
         context.deleteDatabase(name)
         val expected = snapshot("one", 123, "first", "second")
         try {
-            Room.databaseBuilder(context, NewsDatabase::class.java, name).build().let { db ->
+            Room.databaseBuilder(context, AppDataBase::class.java, name).build().let { db ->
                 try { db.newsCacheDao().replace(expected) } finally { db.close() }
             }
-            Room.databaseBuilder(context, NewsDatabase::class.java, name).build().let { db ->
+            Room.databaseBuilder(context, AppDataBase::class.java, name).build().let { db ->
                 try { assertEquals(expected, db.newsCacheDao().read("one")) } finally { db.close() }
             }
         } finally {

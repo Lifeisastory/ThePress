@@ -24,9 +24,13 @@ internal object LogFormatter {
             }
             append(" ${escape(key)}=\"${escape(safeValue)}\"")
         }
+        event.request?.let {
+            append("\nrequest=\n")
+            append(json.encodeToString(JsonElement.serializer(), sanitizePayload(it)))
+        }
         event.response?.let {
             append("\nresponse=\n")
-            append(json.encodeToString(JsonElement.serializer(), sanitizeResponse(it)))
+            append(json.encodeToString(JsonElement.serializer(), sanitizePayload(it)))
         }
         // 不输出异常 message：其中可能带完整 URL、请求凭据或上游正文
         // 保留异常类型、调用栈和 cause 链，包括 Android Log 通常省略的 DNS 异常
@@ -39,17 +43,17 @@ internal object LogFormatter {
         }
     }
 
-    private fun sanitizeResponse(value: JsonElement): JsonElement = when (value) {
+    private fun sanitizePayload(value: JsonElement): JsonElement = when (value) {
         is JsonObject -> JsonObject(value.mapValues { (key, child) ->
             val normalized = key.lowercase().replace("_", "").replace("-", "")
             when {
                 sensitiveNames.any { it in normalized } -> JsonPrimitive("[REDACTED]")
                 normalized.endsWith("url") && child is JsonPrimitive && child.isString ->
                     JsonPrimitive(sanitizeUrl(child.content))
-                else -> sanitizeResponse(child)
+                else -> sanitizePayload(child)
             }
         })
-        is JsonArray -> JsonArray(value.map(::sanitizeResponse))
+        is JsonArray -> JsonArray(value.map(::sanitizePayload))
         else -> value
     }
 

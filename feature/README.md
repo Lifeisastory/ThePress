@@ -20,9 +20,9 @@ MainScreen 独占玻璃导航栏及其背景采样，计算系统安全区和底
 
 HomeFeed 在 Compose 估算的累计滚动距离超过当前列表视口高度时，通过 `onScrollToTopChanged` 提供平滑回到顶部的动作，否则提供 null。HomePage 只转发当前来源的动作，退出首页时清除；MainScreen 将可见性和点击回调传给 AppNavigationBar。导航栏和右侧按钮由 `NavigationGlassSurface` 统一绘制：同一个动画进度驱动底板宽度、按钮位移和融合细颈，显隐时水滴分离／融合，滑块始终位于按钮上层。裁剪与阴影使用平滑并集轮廓，Android 13+ 通过相同距离场计算折射；旧版本保留轮廓动画并沿用原有模糊／底色降级。组件不依赖列表或业务状态。
 
-首页依赖 `core:data`，通过 `NewsRepository` 读取来源。仓库、客户端和 `core:localdb` 数据库由 Application 复用；十分钟内的数据库缓存直接复用，无缓存或缓存过期时请求网络，成功后更新缓存。手动刷新同样遵循这一有效期。
+首页依赖 `core:data`，通过 `NewsRepository.observeNews()` 持续观察数据库内容，独立调用 `refresh(sourceId)` 更新数据库。刷新结果只报告状态，不携带文章。十分钟内复用已有快照，无缓存或过期时联网并写入数据库，写入失败报告存储错误并保留旧内容；手动刷新同样遵循这一有效期。Application 只持有 `AppDataContainer`，数据库、偏好和客户端由 data 统一管理，app 与 feature 不直接依赖 localdb、localsp 或 network。
 
-点击首页左上角来源图标进入数据源排序。MainScreen 在页面和底栏上方承载同窗口的 `SourceOrderDialog`，通用玻璃外观由 design_system 的 `AppGlassDialog` 提供。弹窗支持长按拖动、邻项让位、边缘自动滚动和无障碍上移／下移；取消不保存，点击完成后写入成功才同步首页顺序。`core/localsp/SourceOrderPreferences` 使用进程共享的 Preferences DataStore（`user_preferences` 文件、`news_source_order` 键），以 JSON 数组保存有序来源 ID。HomeViewModel 启动时恢复顺序，忽略重复或失效 ID，新来源追加到末尾；“全部”固定首位，当前来源与各页滚动位置按稳定 ID 保留。
+点击首页左上角来源图标进入数据源排序。MainScreen 在页面和底栏上方承载同窗口的 `SourceOrderDialog`，通用玻璃外观由 design_system 的 `AppGlassDialog` 提供。弹窗支持长按拖动、邻项让位、边缘自动滚动和无障碍上移／下移；取消不保存，点击完成后写入成功才同步首页顺序。HomeViewModel 通过 data 的 `UserPreferencesRepository` 写入和持续观察顺序，底层 `AppSharedPreferences` 使用进程共享的 Preferences DataStore（沿用 `user_preferences` 文件和 `news_source_order` 键），以 JSON 数组保存有序来源 ID。重复或失效 ID 被忽略，遗漏或新加入的来源按内置默认顺序追加；“全部”固定首位，当前来源与各页滚动位置按稳定 ID 保留。偏好更新不触发新闻刷新。
 
 每个 HomeFeed 用 `core/design_system/component/AppRefreshLayout` 包裹自己的 LazyColumn，父子共用同一个 LazyListState。顶部下拉达到阈值并松手后刷新当前来源，“全部”页刷新全部来源；指示器的避让距离复用列表 contentPadding，列表视口不缩小。横向切换来源时暂停刷新手势，各来源的加载状态独立判断。
 

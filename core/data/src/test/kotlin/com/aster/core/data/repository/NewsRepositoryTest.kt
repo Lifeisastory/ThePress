@@ -5,10 +5,11 @@ import com.aster.core.analytics.LogLevel
 import com.aster.core.analytics.Logger
 import com.aster.core.model.NewsArticle
 import com.aster.core.model.NewsFailureReason
-import com.aster.core.model.NewsLoadResult
+import com.aster.core.model.NewsRefreshResult
 import com.aster.core.network.NetworkClient
 import com.aster.core.network.sources.BuiltInSources
 import java.net.UnknownHostException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -28,7 +29,7 @@ class NewsRepositoryTest {
         server = MockWebServer()
         server.start()
         client = NetworkClient()
-        repository = NewsRepository(client, FakeNewsCacheDao(), BuiltInSources.all.map {
+        repository = OfflineFirstNewsRepository(client, FakeNewsCacheDao(), BuiltInSources.all.map {
             it.copy(request = it.request.copy(url = server.url("/${it.id}")))
         })
     }
@@ -54,18 +55,20 @@ class NewsRepositoryTest {
             ]}]}}--></html>
         """.trimIndent()))
 
+        assertEquals(NewsRefreshResult.Success, repository.refresh("qqvideo-tv-hotsearch"))
+        assertEquals(NewsRefreshResult.Success, repository.refresh("baidu"))
         assertEquals(BuiltInSources.all.map { it.id }, repository.sources.map { it.id })
         assertEquals(
-            NewsLoadResult.Success(listOf(NewsArticle(
+            listOf(NewsArticle(
                 "qqvideo-tv-hotsearch", "video-1", "测试剧集", "https://v.qq.com/x/cover/video-1.html", "剧集简介"
-            ))),
-            repository.fetch("qqvideo-tv-hotsearch")
+            )),
+            repository.observeNews().first().filter { it.sourceId == "qqvideo-tv-hotsearch" }
         )
         assertEquals(
-            NewsLoadResult.Success(listOf(NewsArticle(
+            listOf(NewsArticle(
                 "baidu", "https://example.com/news/1", "测试新闻", "https://example.com/news/1", "新闻摘要"
-            ))),
-            repository.fetch("baidu")
+            )),
+            repository.observeNews().first().filter { it.sourceId == "baidu" }
         )
     }
 
@@ -74,8 +77,8 @@ class NewsRepositoryTest {
         server.enqueue(MockResponse.Builder().code(503).body("unavailable").build())
         server.enqueue(MockResponse(body = "<html>validation required</html>"))
 
-        assertEquals(NewsLoadResult.Failure(NewsFailureReason.HTTP, 503), repository.fetch("baidu"))
-        assertEquals(NewsLoadResult.Failure(NewsFailureReason.INVALID_DATA), repository.fetch("baidu"))
+        assertEquals(NewsRefreshResult.Failure(NewsFailureReason.HTTP, 503), repository.refresh("baidu"))
+        assertEquals(NewsRefreshResult.Failure(NewsFailureReason.INVALID_DATA), repository.refresh("baidu"))
     }
 
     @Test(timeout = 10_000)
@@ -86,11 +89,11 @@ class NewsRepositoryTest {
             it.copy(request = it.request.copy(url = "https://dns.test.invalid/".toHttpUrl()))
         }
         val errors = mutableListOf<LogEvent>()
-        val repository = NewsRepository(failingClient, FakeNewsCacheDao(), listOf(source), logger = Logger {
+        val repository = OfflineFirstNewsRepository(failingClient, FakeNewsCacheDao(), listOf(source), logger = Logger {
             if (it.name == "source_failed") errors.add(it)
         })
 
-        assertEquals(NewsLoadResult.Failure(NewsFailureReason.CONNECTION), repository.fetch("baidu"))
+        assertEquals(NewsRefreshResult.Failure(NewsFailureReason.CONNECTION), repository.refresh("baidu"))
         assertEquals("source_failed", errors.single().name)
         assertEquals(LogLevel.ERROR, errors.single().level)
         assertEquals("baidu", errors.single().attributes["sourceId"])

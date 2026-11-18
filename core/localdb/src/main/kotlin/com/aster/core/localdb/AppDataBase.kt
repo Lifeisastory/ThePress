@@ -15,13 +15,14 @@ import com.aster.core.localdb.entity.NewsCacheEntity
     autoMigrations = [AutoMigration(from = 1, to = 2)],
     exportSchema = true
 )
-abstract class NewsDatabase : RoomDatabase() {
+abstract class AppDataBase : RoomDatabase() {
     abstract fun newsCacheDao(): NewsCacheDao
 
     companion object {
-        fun create(context: Context): NewsDatabase = Room.databaseBuilder(
+        fun create(context: Context): AppDataBase = Room.databaseBuilder(
             context.applicationContext,
-            NewsDatabase::class.java,
+            AppDataBase::class.java,
+            // 保留已有文件名，重命名入口不丢失已安装应用的数据
             "news.db"
         ).build()
     }

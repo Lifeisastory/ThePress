@@ -3,7 +3,7 @@ package com.aster.core.data.repository
 import com.aster.core.analytics.Logger
 import com.aster.core.analytics.LogEvent
 import com.aster.core.model.NewsFailureReason
-import com.aster.core.model.NewsLoadResult
+import com.aster.core.model.NewsRefreshResult
 import com.aster.core.network.NetworkClient
 import com.aster.core.network.adapters.mapping.JsonPath
 import com.aster.core.network.model.HttpRequestSpec
@@ -18,6 +18,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withTimeout
+import com.aster.core.localdb.entity.NewsCache
+import com.aster.core.localdb.entity.NewsCacheEntity
+import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -50,7 +58,7 @@ class NewsRepositoryCacheTest {
         repository = createRepository()
     }
 
-    private fun createRepository() = NewsRepository(
+    private fun createRepository() = OfflineFirstNewsRepository(
         client, cache,
         definitions = listOf("one", "two").map { id ->
             SourceDefinition(id, id, HttpRequestSpec(server.url("/$id")), ItemMapping(
@@ -82,35 +90,84 @@ class NewsRepositoryCacheTest {
     }
 
     @Test(timeout = 10_000)
+    fun observationReceivesDatabaseChangesWithoutRefreshing() = runBlocking {
+        val initial = CompletableDeferred<Unit>()
+        val updates = async {
+            withTimeout(5_000) {
+                repository.observeNews().onEach { initial.complete(Unit) }.take(2).toList()
+            }
+        }
+        initial.await()
+        cache.replace(NewsCache(NewsCacheEntity("one", 0), listOf(
+            CachedNewsArticleEntity("one", 0, "external", "Title", "https://example.com", null)
+        )))
+        val values = updates.await()
+        assertTrue(values.first().isEmpty())
+        assertEquals("external", values.last().single().id)
+        assertEquals(0, server.requestCount)
+        assertEquals(listOf("request_started", "request_response", "request_response", "request_finished"),
+            events.map { it.name })
+        assertEquals(1, events.map { it.attributes["requestId"] }.distinct().size)
+        assertTrue(events.all { it.attributes["origin"] == "LOCAL_DATABASE" && it.attributes["operation"] == "OBSERVE" })
+        assertEquals("all_sources", events.first().request!!.jsonObject.getValue("scope").jsonPrimitive.content)
+        val response = events.filter { it.name == "request_response" }.last()
+        assertEquals("2", response.attributes["sequence"])
+        assertEquals("external", response.response!!.jsonObject.getValue("articles").jsonArray.single()
+            .jsonObject.getValue("id").jsonPrimitive.content)
+    }
+
+    @Test(timeout = 10_000)
+    fun failedWriteKeepsOldSnapshotAndRetryPublishesPersistedData() = runBlocking {
+        enqueue("old")
+        repository.refresh("one")
+        now += 600_000
+        cache.writeError = IllegalStateException("disk full")
+        enqueue("unpersisted")
+        assertEquals(NewsRefreshResult.Failure(NewsFailureReason.STORAGE), repository.refresh("one"))
+        assertEquals("old", repository.observeNews().first().single().id)
+        cache.writeError = null
+        enqueue("new")
+        assertEquals(NewsRefreshResult.Success, repository.refresh("one"))
+        assertEquals("new", repository.observeNews().first().single().id)
+    }
+
+    @Test(timeout = 10_000)
     fun imagesSurviveCacheAndLocalSearchDoesNotFetchEvenAfterExpiry() = runBlocking {
         server.enqueue(MockResponse(body = """[{"id":"picture","title":"Title","url":"/article","image":"/cover.jpg"}]"""))
-        val result = repository.fetch("one") as NewsLoadResult.Success
-        assertEquals(server.url("/cover.jpg").toString(), result.articles.single().imageUrl)
-        assertEquals(result, createRepository().fetch("one"))
+        assertEquals(NewsRefreshResult.Success, repository.refresh("one"))
+        val articles = repository.observeNews().first()
+        assertEquals(server.url("/cover.jpg").toString(), articles.single().imageUrl)
+        assertEquals(NewsRefreshResult.Success, createRepository().refresh("one"))
         now += 600_000
-        assertEquals(result.articles, repository.readCached("one"))
-        assertEquals(result.articles, repository.search("  50%_\\  ", "one").first())
+        assertEquals(articles, repository.observeNews().first())
+        assertEquals(articles, repository.search("  50%_\\  ", "one").first())
         assertEquals("%50\\%\\_\\\\%", cache.searchPattern)
         assertEquals("one", cache.searchSourceId)
         assertEquals(1, server.requestCount)
+        val searchEvents = events.filter { it.attributes["operation"] == "SEARCH" }
+        assertEquals(listOf("request_started", "request_response", "request_finished"), searchEvents.map { it.name })
+        assertEquals("50%_\\", searchEvents.first().request!!.jsonObject.getValue("query").jsonPrimitive.content)
+        assertEquals("one", searchEvents.first().request!!.jsonObject.getValue("sourceId").jsonPrimitive.content)
+        assertEquals("picture", searchEvents[1].response!!.jsonObject.getValue("articles").jsonArray.single()
+            .jsonObject.getValue("id").jsonPrimitive.content)
     }
 
     @Test(timeout = 10_000)
     fun successfulFetchIsPersistedAndReadByANewRepositoryUntilExpiry() = runBlocking {
         enqueue("first")
-        val first = repository.fetch("one") as NewsLoadResult.Success
+        val first = repository.refresh("one")
         assertEquals("first", cache.read("one")!!.articles.single().id)
         assertEquals(now, cache.read("one")!!.metadata.fetchedAt)
 
         now += 599_999
-        assertEquals(first, createRepository().fetch("one"))
+        assertEquals(first, createRepository().refresh("one"))
         assertEquals(1, server.requestCount)
         assertEquals(1_000_000L, cache.read("one")!!.metadata.fetchedAt)
 
         now++ // 刚好十分钟，必须请求网络并替换旧快照。
         enqueue("second")
-        val second = repository.fetch("one") as NewsLoadResult.Success
-        assertEquals("second", second.articles.single().id)
+        assertEquals(NewsRefreshResult.Success, repository.refresh("one"))
+        assertEquals("second", repository.observeNews().first().single().id)
         assertEquals(listOf("second"), cache.read("one")!!.articles.map { it.id })
         assertEquals(now, cache.read("one")!!.metadata.fetchedAt)
         assertEquals(2, server.requestCount)
@@ -120,11 +177,11 @@ class NewsRepositoryCacheTest {
     @Test(timeout = 10_000)
     fun expiredCacheIsUnchangedOnNetworkFailureAndNextCallRetries() = runBlocking {
         enqueue("old")
-        repository.fetch("one")
+        repository.refresh("one")
         val previous = cache.read("one")
         now += 600_000
         server.enqueue(MockResponse.Builder().code(503).build())
-        assertEquals(NewsLoadResult.Failure(NewsFailureReason.HTTP, 503), repository.fetch("one"))
+        assertEquals(NewsRefreshResult.Failure(NewsFailureReason.HTTP, 503), repository.refresh("one"))
         val failure = events.last { it.name == "request_finished" && it.attributes["origin"] == "NETWORK" }
         assertEquals("FAILED", failure.attributes["outcome"])
         assertEquals("HTTP", failure.response!!.jsonObject.getValue("reason").jsonPrimitive.content)
@@ -132,42 +189,43 @@ class NewsRepositoryCacheTest {
         assertEquals(previous, cache.read("one"))
 
         enqueue("new")
-        assertEquals("new", (repository.fetch("one") as NewsLoadResult.Success).articles.single().id)
+        assertEquals(NewsRefreshResult.Success, repository.refresh("one"))
+        assertEquals("new", repository.observeNews().first().single().id)
         assertEquals(3, server.requestCount)
     }
 
     @Test(timeout = 10_000)
     fun parsingFailureDoesNotCreateCache() = runBlocking {
         server.enqueue(MockResponse(body = "invalid json"))
-        assertEquals(NewsLoadResult.Failure(NewsFailureReason.INVALID_DATA), repository.fetch("one"))
+        assertEquals(NewsRefreshResult.Failure(NewsFailureReason.INVALID_DATA), repository.refresh("one"))
         assertNull(cache.read("one"))
     }
 
     @Test(timeout = 10_000)
     fun sourcesHaveIndependentCacheAndExpiry() = runBlocking {
         enqueue("first")
-        val first = repository.fetch("one")
+        val first = repository.refresh("one")
         now += 300_000
         enqueue("second")
-        val second = repository.fetch("two")
-        assertEquals(first, repository.fetch("one"))
-        assertEquals(second, repository.fetch("two"))
+        val second = repository.refresh("two")
+        assertEquals(first, repository.refresh("one"))
+        assertEquals(second, repository.refresh("two"))
         now += 300_000
         enqueue("updated")
-        repository.fetch("one")
-        assertEquals(second, repository.fetch("two"))
+        repository.refresh("one")
+        assertEquals(second, repository.refresh("two"))
         assertEquals(3, server.requestCount)
     }
 
     @Test(timeout = 10_000)
     fun successfulEmptyResultIsCachedAndReplacesPreviousArticles() = runBlocking {
         enqueue("old")
-        repository.fetch("one")
+        repository.refresh("one")
         now += 600_000
         server.enqueue(MockResponse(body = "[]"))
-        assertEquals(NewsLoadResult.Success(emptyList()), repository.fetch("one"))
+        assertEquals(NewsRefreshResult.Success, repository.refresh("one"))
         assertEquals(emptyList<Any>(), cache.read("one")!!.articles)
-        assertEquals(NewsLoadResult.Success(emptyList()), createRepository().fetch("one"))
+        assertEquals(NewsRefreshResult.Success, createRepository().refresh("one"))
         assertEquals(2, server.requestCount)
         val response = events.last().response!!.jsonObject
         assertEquals("HIT", response.getValue("outcome").jsonPrimitive.content)
@@ -177,7 +235,7 @@ class NewsRepositoryCacheTest {
     @Test(timeout = 10_000)
     fun concurrentRequestsForTheSameSourceShareTheSuccessfulFetch() = runBlocking {
         enqueue("first")
-        val results = List(8) { async { repository.fetch("one") } }.awaitAll()
+        val results = List(8) { async { repository.refresh("one") } }.awaitAll()
         assertEquals(1, results.distinct().size)
         assertEquals(1, server.requestCount)
     }
@@ -185,22 +243,25 @@ class NewsRepositoryCacheTest {
     @Test(timeout = 10_000)
     fun clockMovingBackwardsInvalidatesCache() = runBlocking {
         enqueue("old")
-        repository.fetch("one")
+        repository.refresh("one")
         now--
         enqueue("new")
-        assertEquals("new", (repository.fetch("one") as NewsLoadResult.Success).articles.single().id)
+        assertEquals(NewsRefreshResult.Success, repository.refresh("one"))
+        assertEquals("new", repository.observeNews().first().single().id)
         assertEquals(2, server.requestCount)
     }
 
     @Test(timeout = 10_000)
-    fun cacheReadAndWriteFailuresStillReturnSuccessfulNetworkData() = runBlocking {
+    fun writeFailureReportsStorageFailureWithoutPublishingNetworkData() = runBlocking {
         cache.readError = IllegalStateException("read failure")
         cache.writeError = IllegalStateException("write failure")
         enqueue("first")
-        assertEquals("first", (repository.fetch("one") as NewsLoadResult.Success).articles.single().id)
+        assertEquals(NewsRefreshResult.Failure(NewsFailureReason.STORAGE), repository.refresh("one"))
+        assertTrue(repository.observeNews().first().isEmpty())
         assertEquals(listOf(cache.readError, cache.writeError), cacheErrors)
         val failedOperations = events.filter {
-            it.name == "request_finished" && it.attributes["origin"] == "LOCAL_DATABASE"
+            it.name == "request_finished" && it.attributes["origin"] == "LOCAL_DATABASE" &&
+                it.attributes["operation"] in listOf("READ", "WRITE")
         }
         assertEquals(listOf("READ", "WRITE"), failedOperations.map { it.attributes["operation"] })
         assertTrue(failedOperations.all { it.attributes["outcome"] == "FAILED" })
@@ -211,7 +272,7 @@ class NewsRepositoryCacheTest {
         val cancellation = CancellationException("cancelled")
         cache.readError = cancellation
         try {
-            repository.fetch("one")
+            repository.refresh("one")
             throw AssertionError("Expected cancellation")
         } catch (error: CancellationException) {
             assertEquals(cancellation, error)
@@ -226,8 +287,8 @@ class NewsRepositoryCacheTest {
     @Test(timeout = 10_000)
     fun databaseAndNetworkRequestsLogPairedEventsAndStructuredArticles() = runBlocking {
         enqueue("first")
-        repository.fetch("one")
-        repository.fetch("one")
+        repository.refresh("one")
+        repository.refresh("one")
         assertEquals(1, server.requestCount)
         val requests = events.filter { it.category == "request" }.groupBy { it.attributes.getValue("requestId") }
         assertEquals(4, requests.size) // 数据库未命中、网络加载、缓存写入、数据库命中。
@@ -237,6 +298,7 @@ class NewsRepositoryCacheTest {
             assertEquals("one", pair.first().attributes["sourceId"])
             assertTrue(pair.last().attributes.getValue("durationMs").toLong() >= 0)
             assertNotNull(pair.last().response)
+            assertNotNull(pair.first().request)
         }
         val network = events.single { it.name == "request_finished" && it.attributes["origin"] == "NETWORK" }
         val local = events.last()
@@ -254,7 +316,7 @@ class NewsRepositoryCacheTest {
     @Test(timeout = 10_000)
     fun networkCancellationLogsItsCompletionWithoutWritingCache() = runBlocking {
         server.enqueue(MockResponse.Builder().body("[]").bodyDelay(5, TimeUnit.SECONDS).build())
-        val request = async { repository.fetch("one") }
+        val request = async { repository.refresh("one") }
         assertNotNull(withContext(Dispatchers.IO) { server.takeRequest(2, TimeUnit.SECONDS) })
         request.cancelAndJoin()
         val network = events.filter { it.attributes["origin"] == "NETWORK" }

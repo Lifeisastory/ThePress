@@ -32,7 +32,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.aster.core.model.NewsFailureReason
-import com.aster.core.model.NewsLoadResult
+import com.aster.core.model.NewsRefreshResult
 import com.aster.core.design_system.component.AppRefreshLayout
 import com.aster.core.ui.NewsArticleCard
 import com.aster.feature.home.impl.model.HomeUiState
@@ -188,9 +188,10 @@ private fun FeedStatus(
 }
 
 @Composable
-private fun failureMessage(error: NewsLoadResult.Failure): String = when (error.reason) {
+private fun failureMessage(error: NewsRefreshResult.Failure): String = when (error.reason) {
     NewsFailureReason.CONNECTION -> stringResource(R.string.home_connection_error)
     NewsFailureReason.TIMEOUT -> stringResource(R.string.home_timeout_error)
     NewsFailureReason.HTTP -> stringResource(R.string.home_http_error, error.httpCode ?: 0)
     NewsFailureReason.INVALID_DATA -> stringResource(R.string.home_data_error)
+    NewsFailureReason.STORAGE -> stringResource(R.string.home_storage_error)
 }
