@@ -4,7 +4,8 @@ import com.aster.core.model.NewsArticle
 
 internal data class HomeUiState(
     val feeds: List<SourceFeedUiState> = emptyList(),
-    val selectedSourceId: String? = null
+    val selectedSourceId: String? = null,
+    val isSourceOrderLoaded: Boolean = true
 ) {
     val isRefreshing: Boolean get() = feeds.any { it.isLoading }
     val visibleFeeds: List<SourceFeedUiState>

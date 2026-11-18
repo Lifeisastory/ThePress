@@ -27,6 +27,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.coroutines.core)
     implementation(project(":core:data"))
+    implementation(project(":core:localsp"))
     implementation(project(":core:design_system"))
     implementation(project(":core:model"))
     implementation(project(":core:ui"))

@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import com.aster.core.data.repository.NewsRepository
 import com.aster.core.design_system.component.SystemInsets
@@ -37,6 +38,8 @@ import com.aster.core.design_system.component.statusBarHeight
 import com.aster.core.design_system.component.liquid_glass.AppNavigationBar
 import com.aster.core.design_system.component.liquid_glass.AppNavigationItem
 import com.aster.feature.home.impl.HomePage
+import com.aster.feature.home.impl.SourceOrderDialog
+import com.aster.feature.home.impl.SourceOrderEditor
 import com.aster.feature.me.impl.ProfilePage
 import com.aster.feature.saved.impl.SavedPage
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -51,6 +54,7 @@ internal fun MainScreen(
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
     var homeScrollToTop by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var sourceOrderEditor by remember { mutableStateOf<SourceOrderEditor?>(null) }
     val savedPages = rememberSaveableStateHolder()
     val items = MainTab.entries.map { AppNavigationItem(stringResource(it.labelRes), it.icon) }
     val backgroundColor = MaterialTheme.colorScheme.background
@@ -92,6 +96,7 @@ internal fun MainScreen(
             Modifier
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
+                .then(if (sourceOrderEditor != null) Modifier.clearAndSetSemantics {} else Modifier)
         ) {
             savedPages.SaveableStateProvider(selectedTab) {
                 when (selectedTab) {
@@ -99,7 +104,8 @@ internal fun MainScreen(
                         repository = repository,
                         contentPadding = contentPadding,
                         onOpenSearch = onOpenSearch,
-                        onScrollToTopChanged = { homeScrollToTop = it }
+                        onScrollToTopChanged = { homeScrollToTop = it },
+                        onEditSourceOrder = { sourceOrderEditor = it }
                     )
                     MainTab.Saved -> SavedPage(contentPadding)
                     MainTab.Profile -> ProfilePage(contentPadding)
@@ -114,6 +120,7 @@ internal fun MainScreen(
             showScrollToTop = selectedTab == MainTab.Home && homeScrollToTop != null,
             onScrollToTop = { homeScrollToTop?.invoke() },
             modifier = Modifier
+                .then(if (sourceOrderEditor != null) Modifier.clearAndSetSemantics {} else Modifier)
                 .align(Alignment.BottomCenter)
                 .onSizeChanged { navigationBarHeightPx = it.height }
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
@@ -124,5 +131,13 @@ internal fun MainScreen(
                     bottom = layoutPadding.calculateBottomPadding()
                 )
         )
+        sourceOrderEditor?.let { editor ->
+            SourceOrderDialog(
+                editor = editor,
+                backdrop = backdrop,
+                onDismiss = { sourceOrderEditor = null },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }

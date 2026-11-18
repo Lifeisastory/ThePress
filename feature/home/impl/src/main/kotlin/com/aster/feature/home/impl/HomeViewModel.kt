@@ -7,19 +7,26 @@ import com.aster.core.model.NewsArticle
 import com.aster.core.model.NewsLoadResult
 import com.aster.core.model.NewsSource
 import com.aster.core.data.repository.NewsRepository
+import com.aster.core.localsp.SourceOrderPreferences
 import com.aster.feature.home.impl.model.HomeUiState
 import com.aster.feature.home.impl.model.SourceFeedUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.IOException
 
 internal class HomeViewModel(
     sources: List<NewsSource>,
     private val loadSource: suspend (String) -> NewsLoadResult,
-    private val readCached: suspend (String) -> List<NewsArticle>? = { null }
+    private val readCached: suspend (String) -> List<NewsArticle>? = { null },
+    private val readSourceOrder: suspend () -> List<String> = { emptyList() },
+    private val persistSourceOrder: suspend (List<String>) -> Unit = {}
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(HomeUiState(sources.map { SourceFeedUiState(it, isLoading = true) }))
+    private val _uiState = MutableStateFlow(HomeUiState(
+        feeds = sources.map { SourceFeedUiState(it, isLoading = true) },
+        isSourceOrderLoaded = false
+    ))
     val uiState = _uiState.asStateFlow()
     private val pending = linkedSetOf<String>()
     private val active = mutableSetOf<String>()
@@ -27,6 +34,10 @@ internal class HomeViewModel(
 
     init {
         viewModelScope.launch {
+            val sourceOrder = readSourceOrder()
+            _uiState.update {
+                it.copy(feeds = orderFeeds(it.feeds, sourceOrder), isSourceOrderLoaded = true)
+            }
             // 先恢复所有本地快照，再联网；过期数据在断网启动时仍可阅读
             sources.forEach { source ->
                 readCached(source.id)?.let { articles ->
@@ -44,6 +55,25 @@ internal class HomeViewModel(
         _uiState.update { it.copy(selectedSourceId = sourceId) }
         // 不重复抓取已加载来源；排队中的当前来源会在下一个空闲槽位优先执行
         drainRequests()
+    }
+
+    /** 写入成功后再发布顺序，失败时保留原顺序供弹窗重试；选中来源始终按 ID 保留 */
+    suspend fun saveSourceOrder(sourceIds: List<String>): Boolean {
+        if (!_uiState.value.isSourceOrderLoaded) return false
+        val orderedIds = orderFeeds(_uiState.value.feeds, sourceIds).map { it.source.id }
+        return try {
+            persistSourceOrder(orderedIds)
+            _uiState.update { it.copy(feeds = orderFeeds(it.feeds, orderedIds)) }
+            true
+        } catch (_: IOException) {
+            false
+        }
+    }
+
+    private fun orderFeeds(feeds: List<SourceFeedUiState>, sourceIds: List<String>): List<SourceFeedUiState> {
+        val byId = feeds.associateBy { it.source.id }
+        // 忽略失效、重复 ID；新加入的来源按默认顺序追加
+        return (sourceIds + byId.keys).distinct().mapNotNull(byId::get)
     }
 
     fun refreshAll() {
@@ -94,11 +124,18 @@ internal class HomeViewModel(
     }
 
     companion object {
-        fun factory(repository: NewsRepository): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+        fun factory(
+            repository: NewsRepository,
+            preferences: SourceOrderPreferences
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 require(modelClass == HomeViewModel::class.java)
                 return modelClass.cast(HomeViewModel(
-                    repository.sources, repository::fetch, repository::readCached
+                    sources = repository.sources,
+                    loadSource = repository::fetch,
+                    readCached = repository::readCached,
+                    readSourceOrder = preferences::readSourceOrder,
+                    persistSourceOrder = preferences::saveSourceOrder
                 ))!!
             }
         }

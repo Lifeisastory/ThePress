@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.aster.core.design_system.modifier.blurFadeEdges
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -142,7 +143,7 @@ fun AppTabRow(
         Layout(
             modifier = Modifier
                 .fillMaxSize()
-                .tabRowEdgeEffect(edgeWidth)
+                .blurFadeEdges(orientation = Orientation.Horizontal, edgeSize = edgeWidth)
                 .selectableGroup()
                 .semantics {
                     collectionInfo = CollectionInfo(1, tabs.size)

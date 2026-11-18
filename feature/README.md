@@ -22,6 +22,8 @@ HomeFeed 在 Compose 估算的累计滚动距离超过当前列表视口高度�
 
 首页依赖 `core:data`，通过 `NewsRepository` 读取来源。仓库、客户端和 `core:localdb` 数据库由 Application 复用；十分钟内的数据库缓存直接复用，无缓存或缓存过期时请求网络，成功后更新缓存。手动刷新同样遵循这一有效期。
 
+点击首页左上角来源图标进入数据源排序。MainScreen 在页面和底栏上方承载同窗口的 `SourceOrderDialog`，通用玻璃外观由 design_system 的 `AppGlassDialog` 提供。弹窗支持长按拖动、邻项让位、边缘自动滚动和无障碍上移／下移；取消不保存，点击完成后写入成功才同步首页顺序。`core/localsp/SourceOrderPreferences` 使用进程共享的 Preferences DataStore（`user_preferences` 文件、`news_source_order` 键），以 JSON 数组保存有序来源 ID。HomeViewModel 启动时恢复顺序，忽略重复或失效 ID，新来源追加到末尾；“全部”固定首位，当前来源与各页滚动位置按稳定 ID 保留。
+
 每个 HomeFeed 用 `core/design_system/component/AppRefreshLayout` 包裹自己的 LazyColumn，父子共用同一个 LazyListState。顶部下拉达到阈值并松手后刷新当前来源，“全部”页刷新全部来源；指示器的避让距离复用列表 contentPadding，列表视口不缩小。横向切换来源时暂停刷新手势，各来源的加载状态独立判断。
 
 刷新指示器由 `component/liquid_glass/AppRefreshIndicator` 绘制，采用胶囊形液态玻璃。AppRefreshLayout 仅记录列表内容供指示器采样，指示器作为兄弟覆盖层绘制，避免重复采样自身。手势状态作为私有实现保留在 AppRefreshLayout.kt 中，行为统一通过 AppRefreshLayoutTest 验证。

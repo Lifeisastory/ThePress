@@ -1,6 +1,7 @@
 package com.aster.feature.home.impl
 
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -34,11 +35,13 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aster.core.data.repository.NewsRepository
+import com.aster.core.localsp.SourceOrderPreferences
 import com.aster.core.design_system.component.liquid_glass.AppIconButton
 import com.aster.core.design_system.component.liquid_glass.AppTab
 import com.aster.core.design_system.component.liquid_glass.AppTabRow
@@ -55,13 +58,15 @@ fun HomePage(
     repository: NewsRepository,
     contentPadding: PaddingValues,
     onOpenSearch: () -> Unit,
-    onScrollToTopChanged: ((() -> Unit)?) -> Unit = {}
+    onScrollToTopChanged: ((() -> Unit)?) -> Unit = {},
+    onEditSourceOrder: (SourceOrderEditor) -> Unit = {}
 ) {
-    val factory = remember(repository) { HomeViewModel.factory(repository) }
+    val context = LocalContext.current
+    val preferences = remember(context.applicationContext) { SourceOrderPreferences(context.applicationContext) }
+    val factory = remember(repository, preferences) { HomeViewModel.factory(repository, preferences) }
     val viewModel: HomeViewModel = viewModel(factory = factory)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
-    val context = LocalContext.current
     HomePage(
         state = state,
         contentPadding = contentPadding,
@@ -70,6 +75,9 @@ fun HomePage(
         onSelectSource = viewModel::selectSource,
         onOpenSearch = onOpenSearch,
         onScrollToTopChanged = onScrollToTopChanged,
+        onEditSourceOrder = {
+            onEditSourceOrder(SourceOrderEditor(state.feeds.map { it.source }, viewModel::saveSourceOrder))
+        },
         onOpenArticle = { url ->
             try {
                 uriHandler.openUri(url)
@@ -90,7 +98,8 @@ internal fun HomePage(
     onSelectSource: (String?) -> Unit,
     onOpenSearch: () -> Unit,
     modifier: Modifier = Modifier,
-    onScrollToTopChanged: ((() -> Unit)?) -> Unit = {}
+    onScrollToTopChanged: ((() -> Unit)?) -> Unit = {},
+    onEditSourceOrder: () -> Unit = {}
 ) {
     val currentOnScrollToTopChanged by rememberUpdatedState(onScrollToTopChanged)
     DisposableEffect(Unit) {
@@ -121,8 +130,9 @@ internal fun HomePage(
     var headerHeightPx by remember { mutableIntStateOf(0) }
 
     // 外部状态恢复时同步页面；Tab 点击直接驱动 Pager，避免双向动画互相打断
-    LaunchedEffect(selectedTab, pagerState) {
-        if (!pagerState.isScrollInProgress && pagerState.currentPage != selectedTab) {
+    LaunchedEffect(selectedTab, pageSourceIds, pagerState) {
+        // 顺序改变后按选中来源 ID 定位，不能沿用旧页码
+        if (pagerState.currentPage != selectedTab) {
             pagerState.scrollToPage(selectedTab)
         }
     }
@@ -178,6 +188,20 @@ internal fun HomePage(
                 contentDescription = stringResource(R.string.home_current_source, currentSourceName),
                 backdrop = feedBackdrop,
                 modifier = Modifier.testTag("home_source_icon")
+                    .clickable(
+                        enabled = state.isSourceOrderLoaded && state.feeds.isNotEmpty(),
+                        interactionSource = null,
+                        indication = null,
+                        role = Role.Button,
+                        onClickLabel = stringResource(R.string.home_open_source_order)
+                    ) {
+                        scope.launch {
+                            // 打开前结束横向转场，以当前可见来源作为重排后的定位依据
+                            pagerState.scrollToPage(visiblePage)
+                            currentOnSelectSource(visibleSourceId)
+                            onEditSourceOrder()
+                        }
+                    }
             )
             AppTabRow(
                 tabs = tabs,
