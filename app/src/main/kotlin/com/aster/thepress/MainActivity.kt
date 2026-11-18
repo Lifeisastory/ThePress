@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // 三键导航模式也透出页面背景，内容安全区由 AppImmersiveBox 处理
+            // 三键导航模式也透出页面背景，固定控件与滚动内容分别处理安全间距
             window.isNavigationBarContrastEnforced = false
         }
         val repository = (application as Application).newsRepository

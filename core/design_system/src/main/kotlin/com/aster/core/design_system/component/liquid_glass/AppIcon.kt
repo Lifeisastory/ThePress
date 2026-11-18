@@ -1,7 +1,10 @@
 package com.aster.core.design_system.component.liquid_glass
 
 import android.os.Build
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -10,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.rememberAsyncImagePainter
@@ -33,7 +38,9 @@ fun AppIcon(
         alpha = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) 0.94f else 0.4f
     )
     Box(
-        modifier = modifier.size(48.dp).drawBackdrop(
+        modifier = modifier.size(48.dp).semantics {
+            if (contentDescription != null) this.contentDescription = contentDescription
+        }.drawBackdrop(
             backdrop = backdrop,
             shape = { CircleShape },
             effects = {
@@ -45,13 +52,21 @@ fun AppIcon(
         ),
         contentAlignment = Alignment.Center
     ) {
-        AsyncImage(
-            model = "file:///android_asset/$platformId.png",
-            contentDescription = contentDescription,
+        // 由 Compose 驱动切换，命中图片内存缓存时也保留淡入淡出；玻璃底板不参与动画
+        Crossfade(
+            targetState = platformId,
             modifier = Modifier.size(32.dp).clip(CircleShape),
-            contentScale = ContentScale.Crop,
-            placeholder = fallback,
-            error = fallback
-        )
+            animationSpec = tween(200),
+            label = "Source icon crossfade"
+        ) { id ->
+            AsyncImage(
+                model = "file:///android_asset/$id.png",
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                placeholder = fallback,
+                error = fallback
+            )
+        }
     }
 }

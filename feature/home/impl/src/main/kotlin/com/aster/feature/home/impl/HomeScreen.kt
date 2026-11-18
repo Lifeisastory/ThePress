@@ -10,14 +10,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.onSizeChanged
@@ -39,6 +45,8 @@ import com.aster.core.design_system.component.liquid_glass.AppIcon
 import com.aster.feature.home.impl.model.HomeUiState
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun HomeRoute(
@@ -83,10 +91,16 @@ internal fun HomeScreen(
     val start = contentPadding.calculateStartPadding(direction)
     val end = contentPadding.calculateEndPadding(direction)
     val selectedTab = state.feeds.indexOfFirst { it.source.id == state.selectedSourceId } + 1
+    val pageSourceIds = listOf<String?>(null) + state.feeds.map { it.source.id }
+    val pagerState = rememberPagerState(initialPage = selectedTab, pageCount = { pageSourceIds.size })
+    val scope = rememberCoroutineScope()
+    val currentOnSelectSource by rememberUpdatedState(onSelectSource)
+    val visiblePage = pagerState.currentPage.coerceIn(pageSourceIds.indices)
+    val visibleSourceId = pageSourceIds[visiblePage]
     val allSourcesLabel = stringResource(R.string.home_all_sources)
     val tabs = listOf(AppTab("all", allSourcesLabel)) +
         state.feeds.map { AppTab(it.source.id, it.source.name) }
-    val currentSourceName = state.feeds.firstOrNull { it.source.id == state.selectedSourceId }?.source?.name
+    val currentSourceName = state.feeds.firstOrNull { it.source.id == visibleSourceId }?.source?.name
         ?: allSourcesLabel
     val backgroundColor = MaterialTheme.colorScheme.background
     // 顶部玻璃控件只采样列表，避免将自身重复录入背景。
@@ -96,21 +110,46 @@ internal fun HomeScreen(
     }
     val density = LocalDensity.current
     var headerHeightPx by remember { mutableIntStateOf(0) }
+
+    // 外部状态恢复时同步页面；Tab 点击直接驱动 Pager，避免双向动画互相打断
+    LaunchedEffect(selectedTab, pagerState) {
+        if (!pagerState.isScrollInProgress && pagerState.currentPage != selectedTab) {
+            pagerState.scrollToPage(selectedTab)
+        }
+    }
+    LaunchedEffect(pagerState, pageSourceIds) {
+        snapshotFlow { pagerState.settledPage }
+            .drop(1)
+            .collect { page ->
+                if (page in pageSourceIds.indices) currentOnSelectSource(pageSourceIds[page])
+            }
+    }
+
     Box(modifier.fillMaxSize().testTag("home_screen")) {
-        HomeFeed(
-            state = state,
-            contentPadding = PaddingValues(
-                start = start,
-                end = end,
-                top = with(density) { headerHeightPx.toDp() } + 16.dp,
-                bottom = contentPadding.calculateBottomPadding()
-            ),
-            onRefreshAll = onRefreshAll,
-            onRefreshSource = onRefreshSource,
-            onOpenArticle = onOpenArticle,
-            modifier = Modifier.fillMaxSize().layerBackdrop(feedBackdrop)
-        )
-        // 系统安全区由外层 SystemInsets 处理。
+        HorizontalPager(
+            state = pagerState,
+            key = { page -> tabs[page].id },
+            // 整个 Pager 统一采样，拖动时玻璃可同时映射正在切换的两页
+            modifier = Modifier.fillMaxSize().layerBackdrop(feedBackdrop).testTag("home_source_pager")
+        ) { page ->
+            val sourceId = pageSourceIds[page]
+            Box(Modifier.fillMaxSize().testTag("home_source_page_${sourceId ?: "all"}")) {
+                HomeFeed(
+                    state = state.copy(selectedSourceId = sourceId),
+                    contentPadding = PaddingValues(
+                        start = start,
+                        end = end,
+                        top = with(density) { headerHeightPx.toDp() } + 16.dp,
+                        bottom = contentPadding.calculateBottomPadding()
+                    ),
+                    onRefreshAll = onRefreshAll,
+                    onRefreshSource = onRefreshSource,
+                    onOpenArticle = onOpenArticle,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+        // 只偏移固定控件；其高度（含状态栏留白）计入列表首部，不缩短 Pager 的视口
         Row(
             Modifier
                 .fillMaxWidth()
@@ -121,15 +160,15 @@ internal fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AppIcon(
-                sourceId = state.selectedSourceId,
+                sourceId = visibleSourceId,
                 contentDescription = stringResource(R.string.home_current_source, currentSourceName),
                 backdrop = feedBackdrop,
                 modifier = Modifier.testTag("home_source_icon")
             )
             AppTabRow(
                 tabs = tabs,
-                selectedIndex = selectedTab,
-                onTabSelected = { index -> onSelectSource(if (index == 0) null else state.feeds[index - 1].source.id) },
+                selectedIndex = visiblePage,
+                onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
                 backdrop = feedBackdrop,
                 modifier = Modifier.weight(1f).testTag("home_source_tabs")
             )
