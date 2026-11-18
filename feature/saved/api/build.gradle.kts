@@ -1,6 +1,5 @@
 plugins {
     id("thepress.android.library")
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -13,8 +12,6 @@ android {
 }
 
 dependencies {
-    api(project(":core:navigation"))
-    implementation(libs.kotlinx.serialization.core)
     implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

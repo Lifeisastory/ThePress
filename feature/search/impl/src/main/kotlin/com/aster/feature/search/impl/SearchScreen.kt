@@ -2,15 +2,19 @@ package com.aster.feature.search.impl
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -42,6 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aster.core.data.repository.NewsRepository
+import com.aster.core.design_system.component.SystemInsets
+import com.aster.core.design_system.component.navigationBarHeight
+import com.aster.core.design_system.component.statusBarHeight
 import com.aster.core.design_system.component.liquid_glass.AppIconButton
 import com.aster.core.design_system.component.liquid_glass.AppSearchBar
 import com.aster.core.ui.NewsArticleCard
@@ -51,7 +58,6 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 @Composable
 internal fun SearchRoute(
     repository: NewsRepository,
-    contentPadding: PaddingValues,
     onBack: () -> Unit
 ) {
     val factory = remember(repository) { SearchViewModel.factory(repository) }
@@ -61,7 +67,6 @@ internal fun SearchRoute(
     val context = LocalContext.current
     SearchScreen(
         state = state,
-        contentPadding = contentPadding,
         onQueryChange = viewModel::setQuery,
         onSearch = viewModel::submitSearch,
         onBack = onBack,
@@ -78,13 +83,20 @@ internal fun SearchRoute(
 @Composable
 internal fun SearchScreen(
     state: SearchUiState,
-    contentPadding: PaddingValues,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onBack: () -> Unit,
     onOpenArticle: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 独立路由只考虑自身的系统栏和键盘，不预留 Main 的玻璃导航栏空间
+    val safePadding = WindowInsets.safeDrawing.asPaddingValues()
+    val contentPadding = PaddingValues(
+        start = 24.dp,
+        end = 24.dp,
+        top = maxOf(statusBarHeight(), safePadding.calculateTopPadding()) + 24.dp,
+        bottom = maxOf(navigationBarHeight(), safePadding.calculateBottomPadding()) + 16.dp
+    )
     val direction = LocalLayoutDirection.current
     val density = LocalDensity.current
     val start = contentPadding.calculateStartPadding(direction)
@@ -103,7 +115,10 @@ internal fun SearchScreen(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     LaunchedEffect(state.query) { listState.scrollToItem(0) }
 
-    Box(modifier.fillMaxSize().testTag("search_screen")) {
+    SystemInsets(
+        modifier = modifier.fillMaxSize().testTag("search_screen"),
+        windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+    ) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize().layerBackdrop(resultsBackdrop).testTag("search_results"),

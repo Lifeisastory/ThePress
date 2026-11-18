@@ -1,6 +1,5 @@
 package com.aster.feature.search.impl.navigation
 
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.aster.core.data.repository.NewsRepository
@@ -9,10 +8,9 @@ import com.aster.feature.search.impl.SearchRoute
 
 fun EntryProviderScope<NavKey>.searchEntry(
     repository: NewsRepository,
-    contentPadding: PaddingValues,
     onBack: () -> Unit
 ) {
     entry<SearchNavKey> {
-        SearchRoute(repository, contentPadding, onBack)
+        SearchRoute(repository, onBack)
     }
 }

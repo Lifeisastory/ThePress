@@ -5,12 +5,11 @@ import androidx.compose.runtime.remember
 import com.aster.core.navigation.NavigationState
 import com.aster.core.navigation.Navigator
 import com.aster.core.navigation.rememberNavigationState
-import com.aster.feature.home.api.navigation.HomeNavKey
-import com.aster.thepress.navigation.TOP_LEVEL_NAV_ITEMS
+import com.aster.feature.main.api.navigation.MainNavKey
 
 @Composable
 internal fun rememberAppState(): AppState {
-    val navigationState = rememberNavigationState(HomeNavKey, TOP_LEVEL_NAV_ITEMS.keys)
+    val navigationState = rememberNavigationState(MainNavKey)
     return remember(navigationState) { AppState(navigationState) }
 }
 

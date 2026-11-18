@@ -7,9 +7,8 @@ import org.junit.Before
 import org.junit.Test
 
 class NavigatorTest {
-    private object Home : NavKey
-    private object Saved : NavKey
-    private object Me : NavKey
+    private object Main : NavKey
+    private object Search : NavKey
     private data class Detail(val id: String) : NavKey
 
     private lateinit var state: NavigationState
@@ -17,58 +16,54 @@ class NavigatorTest {
 
     @Before
     fun setUp() {
-        state = NavigationState(
-            startKey = Home,
-            topLevelStack = NavBackStack<NavKey>(Home),
-            subStacks = listOf<NavKey>(Home, Saved, Me).associateWith { NavBackStack(it) }
-        )
+        state = NavigationState(NavBackStack<NavKey>(Main))
         navigator = Navigator(state)
     }
 
     @Test
-    fun tabHistoryHasNoDuplicatesAndBackReturnsToThePreviousTab() {
-        navigator.navigate(Saved)
-        navigator.navigate(Me)
-        navigator.navigate(Saved)
-        assertEquals(listOf(Home, Me, Saved), state.topLevelStack.toList())
+    fun openingSearchPushesASiblingRouteAndBackReturnsToMain() {
+        navigator.navigate(Search)
+        assertEquals(listOf(Main, Search), state.backStack.toList())
+        assertEquals(Search, state.currentKey)
         navigator.goBack()
-        assertEquals(Me, state.currentTopLevelKey)
-        navigator.goBack()
-        assertEquals(Home, state.currentTopLevelKey)
+        assertEquals(listOf(Main), state.backStack.toList())
+        assertEquals(Main, state.currentKey)
     }
 
     @Test
-    fun switchingTabsPreservesTheirOwnDetailStacks() {
-        val homeDetail = Detail("home")
-        val savedDetail = Detail("saved")
-        navigator.navigate(homeDetail)
-        navigator.navigate(Saved)
-        navigator.navigate(savedDetail)
-        navigator.navigate(Home)
-        assertEquals(homeDetail, state.currentKey)
-        assertEquals(listOf(Home), state.topLevelStack.toList())
-        navigator.navigate(Saved)
-        assertEquals(savedDetail, state.currentKey)
-        navigator.goBack()
-        assertEquals(Saved, state.currentKey)
-        assertEquals(listOf(Home, homeDetail), state.subStacks.getValue(Home).toList())
+    fun repeatedNavigationToCurrentRouteDoesNotDuplicateIt() {
+        repeat(3) { navigator.navigate(Search) }
+        assertEquals(listOf(Main, Search), state.backStack.toList())
     }
 
     @Test
-    fun reselectingATabReturnsToItsRootAndRepeatedDetailDoesNotDuplicate() {
+    fun backPopsRoutesInOrder() {
         val detail = Detail("1")
-        navigator.navigate(Saved)
+        navigator.navigate(Search)
         navigator.navigate(detail)
-        navigator.navigate(detail)
-        assertEquals(listOf(Saved, detail), state.currentSubStack.toList())
-        navigator.navigate(Saved)
-        assertEquals(listOf(Saved), state.currentSubStack.toList())
+        assertEquals(listOf(Main, Search, detail), state.backStack.toList())
+        navigator.goBack()
+        assertEquals(Search, state.currentKey)
+        navigator.goBack()
+        assertEquals(Main, state.currentKey)
     }
 
     @Test
-    fun backAtHomeKeepsANonEmptyStartStack() {
+    fun returningToExistingRouteRemovesOnlyEntriesAboveIt() {
+        navigator.navigate(Search)
+        navigator.navigate(Detail("1"))
+        navigator.navigate(Search)
+        assertEquals(listOf(Main, Search), state.backStack.toList())
+        navigator.navigate(Main)
+        assertEquals(listOf(Main), state.backStack.toList())
+    }
+
+    @Test
+    fun backAtRootKeepsANonEmptyStack() {
         repeat(3) { navigator.goBack() }
-        assertEquals(listOf(Home), state.topLevelStack.toList())
-        assertEquals(listOf(Home), state.currentSubStack.toList())
+        assertEquals(listOf(Main), state.backStack.toList())
+        navigator.navigate(Search)
+        repeat(3) { navigator.goBack() }
+        assertEquals(listOf(Main), state.backStack.toList())
     }
 }
