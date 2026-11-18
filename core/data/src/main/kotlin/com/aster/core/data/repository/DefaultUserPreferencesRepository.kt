@@ -2,6 +2,9 @@ package com.aster.core.data.repository
 
 import com.aster.core.analytics.Logger
 import com.aster.core.analytics.NoOpLogger
+import com.aster.core.model.AppearanceSettings
+import com.aster.core.model.ThemeMode
+import com.aster.core.model.ThemeColor
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
@@ -11,9 +14,39 @@ import kotlinx.serialization.json.put
 internal class DefaultUserPreferencesRepository(
     sourceOrder: Flow<List<String>>,
     private val persistSourceOrder: suspend (List<String>) -> Unit,
+    appearance: Flow<AppearanceSettings>,
+    private val persistThemeMode: suspend (ThemeMode) -> Unit,
+    private val persistThemeColor: suspend (ThemeColor) -> Unit,
     logger: Logger = NoOpLogger
 ) : UserPreferencesRepository {
     private val requestLogging = DataRequestLogging(logger)
+    override val appearance = requestLogging.observe(
+        origin = "LOCAL_PREFERENCES",
+        resource = "user_preferences",
+        request = { buildJsonObject { put("key", "appearance") } },
+        describe = { settings: AppearanceSettings -> buildJsonObject {
+            put("outcome", "SUCCESS")
+            put("mode", settings.mode.name)
+            put("color", settings.color.name)
+        } }
+    ) { appearance }
+
+    override suspend fun saveThemeMode(mode: ThemeMode) = saveAppearance("theme_mode", mode.name) {
+        persistThemeMode(mode)
+    }
+
+    override suspend fun saveThemeColor(color: ThemeColor) = saveAppearance("theme_color", color.name) {
+        persistThemeColor(color)
+    }
+
+    private suspend fun saveAppearance(key: String, value: String, persist: suspend () -> Unit) {
+        requestLogging.trace(
+            origin = "LOCAL_PREFERENCES", operation = "WRITE", resource = "user_preferences",
+            request = { buildJsonObject { put("key", key); put("value", value) } },
+            describe = { buildJsonObject { put("outcome", "SUCCESS") } },
+            block = persist
+        )
+    }
     override val sourceOrder = requestLogging.observe(
         origin = "LOCAL_PREFERENCES",
         resource = "user_preferences",

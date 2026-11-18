@@ -6,6 +6,11 @@ import com.aster.core.model.NewsArticle
 import com.aster.core.model.NewsFailureReason
 import com.aster.core.model.NewsRefreshResult
 import com.aster.core.model.NewsSource
+import com.aster.core.model.AppearanceSettings
+import com.aster.core.model.ThemeMode
+import com.aster.core.model.ThemeColor
+import com.aster.core.model.NewsCacheStats
+import kotlinx.coroutines.flow.map
 import com.aster.core.data.repository.NewsRepository
 import com.aster.core.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +55,9 @@ class HomeViewModelTest {
     private val preferences = FakePreferences()
 
     private class FakePreferences : UserPreferencesRepository {
+        override val appearance = MutableStateFlow(AppearanceSettings())
+        override suspend fun saveThemeMode(mode: ThemeMode) { appearance.value = appearance.value.copy(mode = mode) }
+        override suspend fun saveThemeColor(color: ThemeColor) { appearance.value = appearance.value.copy(color = color) }
         override val sourceOrder = MutableStateFlow<List<String>>(emptyList())
         var failure: IOException? = null
         override suspend fun saveSourceOrder(sourceIds: List<String>) {
@@ -64,6 +72,8 @@ class HomeViewModelTest {
         load: suspend (String) -> NewsRefreshResult
     ): HomeViewModel {
         val repository = object : NewsRepository {
+            override fun observeCacheStats() = articles.map { NewsCacheStats(it.size.toLong(), 0) }
+            override suspend fun clearCache() { articles.value = emptyList() }
             override val sources = sources
             override fun observeNews() = observe()
             override fun search(query: String, sourceId: String?) = articles
@@ -172,7 +182,7 @@ class HomeViewModelTest {
 
         viewModel.refresh("baidu")
         runCurrent()
-        // 刷新成功不会直接替换文章，必须等数据库流发出已落库的内容。
+        // 刷新成功不会直接替换文章，必须等数据库流发出已落库的内容
         assertEquals(listOf(old), viewModel.uiState.value.feeds.last().articles)
         articles.value = listOf(fresh)
         runCurrent()

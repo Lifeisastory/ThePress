@@ -8,6 +8,7 @@ import com.aster.core.model.NewsArticle
 import com.aster.core.model.NewsFailureReason
 import com.aster.core.model.NewsRefreshResult
 import com.aster.core.model.NewsSource
+import com.aster.core.model.NewsCacheStats
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.NewsCache
 import com.aster.core.localdb.dto.NewsCacheDao
@@ -42,6 +43,24 @@ internal class OfflineFirstNewsRepository(
     private val requestLogging = DataRequestLogging(logger)
     private val sourceLocks = definitions.associate { it.id to Mutex() }
     override val sources: List<NewsSource> = definitions.map { NewsSource(it.id, it.name) }
+
+    override fun observeCacheStats(): Flow<NewsCacheStats> = cacheDao.observeCacheStats()
+        .map { NewsCacheStats(it.articleCount, it.contentBytes) }.distinctUntilChanged()
+
+    override suspend fun clearCache() {
+        // 与所有来源的刷新互斥，避免正在进行的请求在清理返回后写回旧快照
+        val locked = mutableListOf<Mutex>()
+        try {
+            sourceLocks.values.forEach { lock -> lock.lock(); locked.add(lock) }
+            requestLogging.trace(
+                origin = "LOCAL_DATABASE", operation = "DELETE",
+                request = { buildJsonObject { put("scope", "all_news_cache") } },
+                describe = { buildJsonObject { put("outcome", "SUCCESS") } }
+            ) { cacheDao.clearCache() }
+        } finally {
+            locked.asReversed().forEach { it.unlock() }
+        }
+    }
 
     override fun observeNews(): Flow<List<NewsArticle>> = requestLogging.observe(
         origin = "LOCAL_DATABASE",

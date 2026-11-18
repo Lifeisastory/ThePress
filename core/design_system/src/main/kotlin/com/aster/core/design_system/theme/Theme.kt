@@ -11,8 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import com.aster.core.model.ThemeColor
 
-/** 让原生 View 等非 Compose 内容使用应用实际选择的主题。 */
+/** 让原生 View 等非 Compose 内容使用应用实际选择的主题 */
 val LocalAppDarkTheme = staticCompositionLocalOf { false }
 
 private val DarkColorScheme = darkColorScheme(
@@ -42,16 +44,16 @@ fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
+    themeColor: ThemeColor = ThemeColor.SYSTEM,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        themeColor == ThemeColor.SYSTEM && dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        else -> presetColorScheme(themeColor, darkTheme)
     }
 
     CompositionLocalProvider(LocalAppDarkTheme provides darkTheme) {
@@ -61,4 +63,29 @@ fun AppTheme(
             content = content
         )
     }
+}
+
+private fun presetColorScheme(color: ThemeColor, dark: Boolean): androidx.compose.material3.ColorScheme {
+    val base = if (dark) DarkColorScheme else LightColorScheme
+    val palette = when (color) {
+        ThemeColor.BLUE -> if (dark) listOf(0xFFA8C7FA, 0xFF003062, 0xFF084785, 0xFFD6E3FF)
+            else listOf(0xFF245FA6, 0xFFFFFFFF, 0xFFD6E3FF, 0xFF001B3C)
+        ThemeColor.GREEN -> if (dark) listOf(0xFF82D5B0, 0xFF003827, 0xFF00513A, 0xFF9EF2CB)
+            else listOf(0xFF006C4F, 0xFFFFFFFF, 0xFF9EF2CB, 0xFF002114)
+        ThemeColor.SYSTEM, ThemeColor.PURPLE -> return base
+    }.map { Color(it) }
+    return base.copy(
+        primary = palette[0], onPrimary = palette[1],
+        primaryContainer = palette[2], onPrimaryContainer = palette[3],
+        secondary = palette[0], onSecondary = palette[1],
+        secondaryContainer = palette[2], onSecondaryContainer = palette[3],
+        tertiary = palette[0], onTertiary = palette[1],
+        tertiaryContainer = palette[2], onTertiaryContainer = palette[3],
+        surfaceTint = palette[0],
+        inversePrimary = when (color) {
+            ThemeColor.BLUE -> Color(if (dark) 0xFF245FA6 else 0xFFA8C7FA)
+            ThemeColor.GREEN -> Color(if (dark) 0xFF006C4F else 0xFF82D5B0)
+            else -> base.inversePrimary
+        }
+    )
 }

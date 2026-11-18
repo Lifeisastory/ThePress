@@ -113,7 +113,12 @@ internal fun MainScreen(
                         onEditSourceOrder = { sourceOrderEditor = it }
                     )
                     MainTab.Saved -> SavedPage(contentPadding)
-                    MainTab.Profile -> ProfilePage(contentPadding)
+                    MainTab.Profile -> ProfilePage(
+                        contentPadding = contentPadding,
+                        repository = repository,
+                        preferencesRepository = preferencesRepository,
+                        onOpenLink = onOpenArticle
+                    )
                 }
             }
         }

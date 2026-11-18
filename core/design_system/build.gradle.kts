@@ -17,7 +17,8 @@ android {
 }
 
 dependencies {
-    // Backdrop is part of the navigation bar's public API.
+    api(project(":core:model"))
+    // Backdrop is part of the navigation bar's public API
     api(libs.kyant.backdrop)
     implementation(libs.kyant.shapes)
     implementation(libs.coil.compose)

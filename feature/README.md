@@ -1,6 +1,6 @@
 # Feature 模块与导航
 
-应用包含同级的 `MainScreen`、`SearchScreen` 和 `WebViewScreen` 独立路由页。Main 内包含 `HomePage`、`SavedPage`、`ProfilePage` 三个 Tab 页面，收藏和我的当前仅展示标题占位。独立路由页使用 `XxxScreen` 命名，内部页面使用 `XxxPage`；`ProfilePage` 暂保留在既有 `feature/me` 模块中。
+应用包含同级的 `MainScreen`、`SearchScreen` 和 `WebViewScreen` 独立路由页。Main 内包含 `HomePage`、`SavedPage`、`ProfilePage` 三个 Tab 页面，收藏当前仅展示标题占位。独立路由页使用 `XxxScreen` 命名，内部页面使用 `XxxPage`；`ProfilePage` 保留在既有 `feature/me` 模块中，提供外观设置、资讯缓存管理与关于信息。
 
 | 位置 | 职责 |
 | --- | --- |
@@ -11,6 +11,7 @@
 | `app/ui/App.kt` | 应用路由宿主入口 |
 | `feature/main/api` | MainNavKey，供应用设置起始路由与识别当前路由 |
 | `feature/main/impl` | MainScreen、MainTab、各 Page 的状态保存、系统边距、悬浮玻璃导航栏和 mainEntry 注册函数 |
+| `feature/me/impl` | ProfilePage、ProfileViewModel，主题与颜色选择、资讯缓存统计与清除、项目地址和致谢 |
 | `feature/webview/api`、`feature/webview/impl` | 携带 URL 的 WebViewNavKey、应用内网页、网页历史状态和 webViewEntry 注册函数 |
 
 Main 使用 `rememberSaveable` 保存选中 Tab，用 `SaveableStateHolder` 按 Tab 保存页面滚动位置等 UI 状态。首页 ViewModel 在 `HomePage` 中取得，归属 Main 路由条目的 ViewModelStore，切换 Tab 不会重新创建。搜索拥有独立的 ViewModel，出栈后释放；从搜索返回恢复 Main 原来的 Tab 和页面状态。普通 ViewModel 不负责进程死亡后的数据保存，进程重建后首页仍从仓库缓存恢复数据。
@@ -20,6 +21,10 @@ Main 使用 `rememberSaveable` 保存选中 Tab，用 `SaveableStateHolder` 按 
 WebView 的顶部玻璃控件与刷新指示器使用主题底色作为背景，不实时采样网页。AppRefreshLayout 接收外部 indicatorBackdrop 后跳过内容录制，避免原生 WebView 被重复绘制到离屏图层而闪动；普通列表仍使用原有的内容采样。
 
 AppTheme 通过 LocalAppDarkTheme 提供实际深浅色选择，WebView 使用独立的 Android 主题上下文同步 isLightTheme 和夜间配置。主题切换时重建 WebView 并恢复历史；网站自带的 prefers-color-scheme 样式优先，支持 ALGORITHMIC_DARKENING 的 WebView 在深色模式下允许自动暗化。网站显式禁用暗化或设备 WebView 不支持时保留站点样式，不保证所有网站都变为深色。
+
+ProfilePage 使用带 contentPadding 的 LazyColumn 分组展示设置，复用 Main 的安全区与底栏避让。ProfileViewModel 通过 UserPreferencesRepository 观察和保存主题模式、颜色，MainActivity 观察同一偏好并更新 AppTheme 与系统栏图标。动态取色在 Android 12+ 生效，旧系统退回默认紫色。设置写入失败保留已保存的选项并提示，读取失败自动重试。
+
+资讯缓存的条数与内容大小通过 NewsRepository.observeCacheStats() 实时观察；大小仅统计缓存文本字段的 UTF-8 字节数，不代表整个数据库文件、图片或 WebView 占用。清除操作在页内二次确认，与正在进行的来源刷新互斥，删除快照及其有效期，保留外观和来源排序；清理后首页与搜索通过数据库观察流更新。项目地址和致谢链接通过 Main 的 onOpenArticle 回调进入应用内 WebView。
 
 Tab 切换不修改应用返回栈，也不保留 Tab 访问历史。系统返回先关闭独立路由；在 Main 的收藏或我的页面返回时切回首页，首页根页面交由 Activity 处理退出。主 Tab 通过底部玻璃栏切换，首页的水平滑动只用于切换数据源。
 

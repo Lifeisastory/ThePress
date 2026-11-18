@@ -3,9 +3,14 @@ package com.aster.core.data.repository
 import com.aster.core.model.NewsArticle
 import com.aster.core.model.NewsRefreshResult
 import com.aster.core.model.NewsSource
+import com.aster.core.model.NewsCacheStats
 import kotlinx.coroutines.flow.Flow
 
 interface NewsRepository {
+    fun observeCacheStats(): Flow<NewsCacheStats>
+
+    suspend fun clearCache()
+
     val sources: List<NewsSource>
 
     /** 持续观察本地新闻，包含过期快照；不会触发网络请求 */

@@ -10,6 +10,8 @@
 | `NewsSource` | 数据来源的 ID 与展示名称。 |
 | `NewsRefreshResult` | 资讯刷新的成功或失败状态，不携带文章；文章通过数据库观察流提供。 |
 | `NewsFailureReason` | 连接失败、超时、HTTP 错误、数据异常和本地存储失败等原因。 |
+| `AppearanceSettings`、`ThemeMode`、`ThemeColor` | 持久化的显示模式和配色选项，默认跟随系统并使用动态取色。 |
+| `NewsCacheStats` | 资讯缓存条目数与文本内容字节数。 |
 
 数据层、功能模块和共享 UI 均可使用这些模型。模块只定义共享数据结构，不包含网络请求、数据库操作、仓库实现或 UI 逻辑，也不反向依赖这些业务模块。
 

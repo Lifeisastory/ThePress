@@ -2,6 +2,7 @@ package com.aster.core.data.repository
 
 import com.aster.core.analytics.LogEvent
 import com.aster.core.analytics.Logger
+import com.aster.core.model.AppearanceSettings
 import java.io.IOException
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -23,7 +24,8 @@ class DefaultUserPreferencesRepositoryTest {
     fun preferencesObservationAndWriteHaveLocalOriginsAndStructuredPayloads() = runBlocking {
         var saved = emptyList<String>()
         val repository = DefaultUserPreferencesRepository(
-            flowOf(emptyList(), listOf("two", "one")), { saved = it }, logger
+            flowOf(emptyList(), listOf("two", "one")), { saved = it },
+            flowOf(AppearanceSettings()), {}, {}, logger
         )
         assertEquals(listOf(emptyList<String>(), listOf("two", "one")), repository.sourceOrder.toList())
         repository.saveSourceOrder(listOf("two", "", "one", "two"))
@@ -45,7 +47,9 @@ class DefaultUserPreferencesRepositoryTest {
     @Test
     fun writeFailureLogsFailureAndPropagatesWithoutChangingStoredOrder() = runBlocking {
         val failure = IOException("disk full")
-        val repository = DefaultUserPreferencesRepository(flowOf(listOf("one")), { throw failure }, logger)
+        val repository = DefaultUserPreferencesRepository(
+            flowOf(listOf("one")), { throw failure }, flowOf(AppearanceSettings()), {}, {}, logger
+        )
         try {
             repository.saveSourceOrder(listOf("two"))
             throw AssertionError("Expected failure")
@@ -61,7 +65,9 @@ class DefaultUserPreferencesRepositoryTest {
     @Test
     fun readFailureLogsFailureAndPropagates() = runBlocking {
         val failure = IOException("unavailable")
-        val repository = DefaultUserPreferencesRepository(flow { throw failure }, {}, logger)
+        val repository = DefaultUserPreferencesRepository(
+            flow { throw failure }, {}, flowOf(AppearanceSettings()), {}, {}, logger
+        )
         try {
             repository.sourceOrder.toList()
             throw AssertionError("Expected failure")

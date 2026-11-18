@@ -22,6 +22,13 @@ class AppDataContainer(context: Context, private val logger: Logger = NoOpLogger
         OfflineFirstNewsRepository(networkClient, database.newsCacheDao(), logger = logger)
     }
     val userPreferencesRepository: UserPreferencesRepository by lazy {
-        DefaultUserPreferencesRepository(preferences.sourceOrder, preferences::saveSourceOrder, logger)
+        DefaultUserPreferencesRepository(
+            sourceOrder = preferences.sourceOrder,
+            persistSourceOrder = preferences::saveSourceOrder,
+            appearance = preferences.appearance,
+            persistThemeMode = preferences::saveThemeMode,
+            persistThemeColor = preferences::saveThemeColor,
+            logger = logger
+        )
     }
 }

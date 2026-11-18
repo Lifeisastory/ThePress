@@ -22,6 +22,10 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.platform.app.InstrumentationRegistry
 import com.aster.core.data.repository.NewsRepository
 import com.aster.core.data.repository.UserPreferencesRepository
+import com.aster.core.model.AppearanceSettings
+import com.aster.core.model.ThemeMode
+import com.aster.core.model.ThemeColor
+import com.aster.core.model.NewsCacheStats
 import com.aster.core.model.NewsArticle
 import com.aster.core.model.NewsSource
 import com.aster.core.model.NewsRefreshResult
@@ -48,6 +52,9 @@ class AppNavigationTest {
 
     private val repository = TestNewsRepository()
     private val preferences = object : UserPreferencesRepository {
+        override val appearance = MutableStateFlow(AppearanceSettings())
+        override suspend fun saveThemeMode(mode: ThemeMode) { appearance.value = appearance.value.copy(mode = mode) }
+        override suspend fun saveThemeColor(color: ThemeColor) { appearance.value = appearance.value.copy(color = color) }
         override val sourceOrder = MutableStateFlow<List<String>>(emptyList())
         override suspend fun saveSourceOrder(sourceIds: List<String>) { sourceOrder.value = sourceIds }
     }
@@ -226,8 +233,10 @@ class AppNavigationTest {
         onBaiduPage("home_article_baidu_0").assertIsDisplayed()
     }
 
-    /** 使用 data 的公开接口模拟列表，不依赖真实资讯接口和数据库；网页内容不参与断言。 */
+    /** 使用 data 的公开接口模拟列表，不依赖真实资讯接口和数据库；网页内容不参与断言 */
     private class TestNewsRepository : NewsRepository {
+        override fun observeCacheStats() = flowOf(NewsCacheStats(0, 0))
+        override suspend fun clearCache() = Unit
         var observations = 0
         override val sources = listOf(NewsSource("qqvideo-tv-hotsearch", "腾讯视频"), NewsSource("baidu", "百度"))
         override fun observeNews() = flow {

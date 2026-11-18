@@ -12,6 +12,23 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class NewsCacheDao {
+    @Query("""
+        SELECT COUNT(*) AS articleCount,
+            COALESCE(SUM(
+                length(CAST(sourceId AS BLOB)) + length(CAST(id AS BLOB)) +
+                length(CAST(title AS BLOB)) + length(CAST(url AS BLOB)) +
+                length(CAST(COALESCE(summary, '') AS BLOB)) +
+                length(CAST(COALESCE(imageUrl, '') AS BLOB)) +
+                length(CAST(COALESCE(stock_code, '') AS BLOB))
+            ), 0) AS contentBytes
+        FROM cached_news_articles
+    """)
+    abstract fun observeCacheStats(): Flow<NewsCacheSize>
+
+    /** 外键级联删除文章，并一起移除有效期，下一次刷新会重新请求 */
+    @Query("DELETE FROM news_cache")
+    abstract suspend fun clearCache()
+
     @Query("SELECT * FROM cached_news_articles ORDER BY sourceId, position")
     abstract fun observeArticles(): Flow<List<CachedNewsArticleEntity>>
 
@@ -54,3 +71,5 @@ abstract class NewsCacheDao {
         insertArticles(cache.articles)
     }
 }
+
+data class NewsCacheSize(val articleCount: Long, val contentBytes: Long)
