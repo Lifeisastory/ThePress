@@ -1,4 +1,5 @@
 <resources>
+    <string name="app_loading">正在加载</string>
     <string name="app_dismiss_dialog">关闭弹窗</string>
     <string name="app_scroll_to_top">回到顶部</string>
     <string name="app_refresh_pull_down">下拉刷新</string>

@@ -15,7 +15,7 @@
 
 Main 使用 `rememberSaveable` 保存选中 Tab，用 `SaveableStateHolder` 按 Tab 保存页面滚动位置等 UI 状态。首页 ViewModel 在 `HomePage` 中取得，归属 Main 路由条目的 ViewModelStore，切换 Tab 不会重新创建。搜索拥有独立的 ViewModel，出栈后释放；从搜索返回恢复 Main 原来的 Tab 和页面状态。普通 ViewModel 不负责进程死亡后的数据保存，进程重建后首页仍从仓库缓存恢复数据。
 
-首页和搜索的条目点击通过 `onOpenArticle(url)` 交给应用导航，统一打开 WebViewScreen。顶部悬浮栏使用 AppIconButton 返回／关闭按钮和与首页 Tab 栏同款效果的 AppTitleBar 标题胶囊，展示标题、域名和加载进度。网页滚动到顶部后通过 AppRefreshLayout 下拉刷新，失败时也可点击重试。RefreshWebView 将顶部单指下拉分发给 Compose 嵌套滚动，保留网页其他手势；刷新容器遇到多指操作会取消本次刷新。系统返回与工具栏返回优先回退网页历史，没有历史时退出路由，关闭按钮直接返回原列表。顶部控件避让状态栏，网页视口延伸到悬浮栏下方；底部避让系统栏和键盘，不显示 Main 底栏。网页历史通过 WebView.saveState/restoreState 随路由保存，实例在 AndroidView 释放时销毁，并随页面生命周期暂停／恢复。HTTP(S) 链接留在应用内，其他协议不自动拉起外部应用；允许 JavaScript 和 DOM 存储，关闭文件与 content URI 访问，不注入原生 JS 桥，不放行证书错误，也不改变应用的明文流量策略。
+首页和搜索的条目点击通过 `onOpenArticle(url)` 交给应用导航，统一打开 WebViewScreen。顶部悬浮栏使用 AppIconButton 返回／关闭按钮和与首页 Tab 栏同款效果的 AppTitleBar 标题胶囊，展示标题和域名。普通网页加载时，在内容区域中央显示 design_system/component/AppLoadingIndicator 自绘三点动画，完成或失败后隐藏；下拉刷新沿用刷新指示器，不重复显示中央动画。网页滚动到顶部后通过 AppRefreshLayout 下拉刷新，失败时也可点击重试。RefreshWebView 将顶部单指下拉分发给 Compose 嵌套滚动，保留网页其他手势；刷新容器遇到多指操作会取消本次刷新。系统返回与工具栏返回优先回退网页历史，没有历史时退出路由，关闭按钮直接返回原列表。SystemInsets 统一避让状态栏、刘海、底部系统栏和键盘；顶部控件独立占据布局空间，网页视口从工具栏下方开始，不显示 Main 底栏。网页历史通过 WebView.saveState/restoreState 随路由保存，实例在 AndroidView 释放时销毁，并随页面生命周期暂停／恢复。HTTP(S) 链接留在应用内，其他协议不自动拉起外部应用；允许 JavaScript 和 DOM 存储，关闭文件与 content URI 访问，不注入原生 JS 桥，不放行证书错误，也不改变应用的明文流量策略。
 
 WebView 的顶部玻璃控件与刷新指示器使用主题底色作为背景，不实时采样网页。AppRefreshLayout 接收外部 indicatorBackdrop 后跳过内容录制，避免原生 WebView 被重复绘制到离屏图层而闪动；普通列表仍使用原有的内容采样。
 
