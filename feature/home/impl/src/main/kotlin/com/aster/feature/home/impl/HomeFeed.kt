@@ -17,8 +17,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -32,6 +36,7 @@ import com.aster.core.model.NewsLoadResult
 import com.aster.core.design_system.component.AppRefreshLayout
 import com.aster.core.ui.NewsArticleCard
 import com.aster.feature.home.impl.model.HomeUiState
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun HomeFeed(
@@ -41,19 +46,35 @@ internal fun HomeFeed(
     onRefreshSource: (String) -> Unit,
     onOpenArticle: (String) -> Unit,
     modifier: Modifier = Modifier,
-    refreshEnabled: Boolean = true
+    refreshEnabled: Boolean = true,
+    onScrollToTopChanged: ((() -> Unit)?) -> Unit = {}
 ) {
     val savedLists = rememberSaveableStateHolder()
     val sourceKey = state.selectedSourceId ?: "all"
     // 各来源独立保存位置，进入搜索页不会改动首页列表状态
     savedLists.SaveableStateProvider(sourceKey) {
         val listState = rememberLazyListState()
+        val scope = rememberCoroutineScope()
+        val showScrollToTop by remember(listState) {
+            derivedStateOf {
+                // LazyColumn 按已测量条目估算累计距离，阈值随实际视口变化
+                val scroll = listState.scrollIndicatorState
+                scroll != null && scroll.viewportSize > 0 &&
+                    scroll.scrollOffset > scroll.viewportSize
+            }
+        }
+        val scrollToTop: () -> Unit = remember(listState, scope) {
+            { scope.launch { listState.animateScrollToItem(0) }; Unit }
+        }
+        // 在组合阶段读取派生状态，跨过阈值（包括回到顶部）时才能触发重组
+        val scrollToTopAction = if (showScrollToTop) scrollToTop else null
+        SideEffect { onScrollToTopChanged(scrollToTopAction) }
         val articles = state.visibleArticles
         val feeds = state.visibleFeeds
         val loading = feeds.any { it.isLoading }
         val showStatus = feeds.any { it.error != null } || (!loading && articles.isEmpty())
         var statusDismissed by rememberSaveable { mutableStateOf(false) }
-        // 每个来源独立关闭本次提示；提示清除或手动刷新后允许再次显示。
+        // 每个来源独立关闭本次提示；提示清除或手动刷新后允许再次显示
         LaunchedEffect(showStatus) {
             if (!showStatus) statusDismissed = false
         }

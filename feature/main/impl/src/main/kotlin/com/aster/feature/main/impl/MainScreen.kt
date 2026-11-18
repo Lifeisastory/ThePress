@@ -50,6 +50,7 @@ internal fun MainScreen(
     modifier: Modifier = Modifier
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
+    var homeScrollToTop by remember { mutableStateOf<(() -> Unit)?>(null) }
     val savedPages = rememberSaveableStateHolder()
     val items = MainTab.entries.map { AppNavigationItem(stringResource(it.labelRes), it.icon) }
     val backgroundColor = MaterialTheme.colorScheme.background
@@ -94,7 +95,12 @@ internal fun MainScreen(
         ) {
             savedPages.SaveableStateProvider(selectedTab) {
                 when (selectedTab) {
-                    MainTab.Home -> HomePage(repository, contentPadding, onOpenSearch)
+                    MainTab.Home -> HomePage(
+                        repository = repository,
+                        contentPadding = contentPadding,
+                        onOpenSearch = onOpenSearch,
+                        onScrollToTopChanged = { homeScrollToTop = it }
+                    )
                     MainTab.Saved -> SavedPage(contentPadding)
                     MainTab.Profile -> ProfilePage(contentPadding)
                 }
@@ -105,6 +111,8 @@ internal fun MainScreen(
             selectedIndex = MainTab.entries.indexOf(selectedTab),
             onItemSelected = { selectedTab = MainTab.entries[it] },
             backdrop = backdrop,
+            showScrollToTop = selectedTab == MainTab.Home && homeScrollToTop != null,
+            onScrollToTop = { homeScrollToTop?.invoke() },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .onSizeChanged { navigationBarHeightPx = it.height }

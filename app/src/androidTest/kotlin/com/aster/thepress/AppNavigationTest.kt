@@ -15,6 +15,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.platform.app.InstrumentationRegistry
 import com.aster.core.data.repository.NewsRepository
 import com.aster.core.design_system.theme.AppTheme
@@ -130,6 +132,52 @@ class AppNavigationTest {
         tab(MeR.string.feature_me_title).assertIsSelected()
         compose.runOnIdle { backDispatcher.onBackPressed() }
         compose.onNodeWithTag("home_page").assertIsDisplayed()
+    }
+
+    @Test
+    fun scrollToTopAppearsAfterOneViewportAndReturnsCurrentSourceToTop() {
+        render()
+        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
+        compose.onNodeWithTag("glass_tab_baidu").performClick()
+        val button = compose.onNodeWithTag("liquid_glass_scroll_to_top")
+        val feed = onBaiduPage("home_feed")
+        val viewportHeight = feed.fetchSemanticsNode().boundsInRoot.height
+        button.assertDoesNotExist()
+
+        feed.performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, viewportHeight * 0.75f) }
+        button.assertDoesNotExist()
+        feed.performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, viewportHeight * 0.75f) }
+        button.assertIsDisplayed().performClick()
+
+        button.assertDoesNotExist()
+        onBaiduPage("home_article_baidu_0").assertIsDisplayed()
+        compose.onNodeWithTag("glass_tab_baidu").assertIsSelected()
+    }
+
+    @Test
+    fun scrollToTopFollowsActiveSourceAndRestoredPosition() {
+        val restoration = render()
+        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
+        compose.onNodeWithTag("glass_tab_baidu").performClick()
+        onBaiduPage("home_feed").performScrollToIndex(15)
+        val button = compose.onNodeWithTag("liquid_glass_scroll_to_top")
+        button.assertIsDisplayed()
+
+        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_all"))
+        compose.onNodeWithTag("glass_tab_all").performClick()
+        button.assertDoesNotExist()
+        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
+        compose.onNodeWithTag("glass_tab_baidu").performClick()
+        button.assertIsDisplayed()
+
+        selectTab(SavedR.string.feature_saved_title)
+        button.assertDoesNotExist()
+        selectTab(HomeR.string.feature_home_title)
+        button.assertIsDisplayed()
+        restoration.emulateSavedInstanceStateRestore()
+        button.assertIsDisplayed().performClick()
+        button.assertDoesNotExist()
+        onBaiduPage("home_article_baidu_0").assertIsDisplayed()
     }
 
     /** 全部来源均有有效缓存，路由测试不依赖网络；记录读取次数以发现 ViewModel 被重建。 */

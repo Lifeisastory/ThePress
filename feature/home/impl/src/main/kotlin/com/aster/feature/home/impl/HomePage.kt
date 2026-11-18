@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -53,7 +54,8 @@ import com.aster.core.ui.R as UiR
 fun HomePage(
     repository: NewsRepository,
     contentPadding: PaddingValues,
-    onOpenSearch: () -> Unit
+    onOpenSearch: () -> Unit,
+    onScrollToTopChanged: ((() -> Unit)?) -> Unit = {}
 ) {
     val factory = remember(repository) { HomeViewModel.factory(repository) }
     val viewModel: HomeViewModel = viewModel(factory = factory)
@@ -67,6 +69,7 @@ fun HomePage(
         onRefreshSource = viewModel::refresh,
         onSelectSource = viewModel::selectSource,
         onOpenSearch = onOpenSearch,
+        onScrollToTopChanged = onScrollToTopChanged,
         onOpenArticle = { url ->
             try {
                 uriHandler.openUri(url)
@@ -86,8 +89,13 @@ internal fun HomePage(
     onOpenArticle: (String) -> Unit,
     onSelectSource: (String?) -> Unit,
     onOpenSearch: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onScrollToTopChanged: ((() -> Unit)?) -> Unit = {}
 ) {
+    val currentOnScrollToTopChanged by rememberUpdatedState(onScrollToTopChanged)
+    DisposableEffect(Unit) {
+        onDispose { currentOnScrollToTopChanged(null) }
+    }
     val direction = LocalLayoutDirection.current
     val start = contentPadding.calculateStartPadding(direction)
     val end = contentPadding.calculateEndPadding(direction)
@@ -147,7 +155,11 @@ internal fun HomePage(
                     onRefreshSource = onRefreshSource,
                     onOpenArticle = onOpenArticle,
                     modifier = Modifier.fillMaxSize(),
-                    refreshEnabled = page == visiblePage && !pagerState.isScrollInProgress
+                    refreshEnabled = page == visiblePage && !pagerState.isScrollInProgress,
+                    onScrollToTopChanged = { action ->
+                        // Pager 会预组合相邻来源，只有当前可见页能更新底栏动作
+                        if (page == visiblePage) currentOnScrollToTopChanged(action)
+                    }
                 )
             }
         }

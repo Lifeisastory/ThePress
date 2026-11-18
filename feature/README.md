@@ -18,6 +18,8 @@ Tab 切换不修改应用返回栈，也不保留 Tab 访问历史。系统返�
 
 MainScreen 独占玻璃导航栏及其背景采样，计算系统安全区和底栏占用后，通过 `contentPadding` 传给各 Page。HomePage 将头尾留白用于列表内容，列表视口仍延伸到状态栏和底部系统导航栏后方。SearchScreen 自行处理系统栏和键盘安全区，不预留 Main 底栏高度。布局使用 Box 与 SystemInsets，不依赖 Scaffold。
 
+HomeFeed 在 Compose 估算的累计滚动距离超过当前列表视口高度时，通过 `onScrollToTopChanged` 提供平滑回到顶部的动作，否则提供 null。HomePage 只转发当前来源的动作，退出首页时清除；MainScreen 将可见性和点击回调传给 AppNavigationBar。导航栏和右侧按钮由 `NavigationGlassSurface` 统一绘制：同一个动画进度驱动底板宽度、按钮位移和融合细颈，显隐时水滴分离／融合，滑块始终位于按钮上层。裁剪与阴影使用平滑并集轮廓，Android 13+ 通过相同距离场计算折射；旧版本保留轮廓动画并沿用原有模糊／底色降级。组件不依赖列表或业务状态。
+
 首页依赖 `core:data`，通过 `NewsRepository` 读取来源。仓库、客户端和 `core:localdb` 数据库由 Application 复用；十分钟内的数据库缓存直接复用，无缓存或缓存过期时请求网络，成功后更新缓存。手动刷新同样遵循这一有效期。
 
 每个 HomeFeed 用 `core/design_system/component/AppRefreshLayout` 包裹自己的 LazyColumn，父子共用同一个 LazyListState。顶部下拉达到阈值并松手后刷新当前来源，“全部”页刷新全部来源；指示器的避让距离复用列表 contentPadding，列表视口不缩小。横向切换来源时暂停刷新手势，各来源的加载状态独立判断。

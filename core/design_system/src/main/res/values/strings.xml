@@ -1,4 +1,5 @@
 <resources>
+    <string name="app_scroll_to_top">回到顶部</string>
     <string name="app_refresh_pull_down">下拉刷新</string>
     <string name="app_refresh_release">松开刷新</string>
     <string name="app_refresh_refreshing">正在刷新</string>
