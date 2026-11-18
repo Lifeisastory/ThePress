@@ -1,6 +1,7 @@
 package com.aster.thepress
 
 import androidx.activity.OnBackPressedDispatcher
+import androidx.annotation.StringRes
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
@@ -14,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
+import androidx.test.platform.app.InstrumentationRegistry
 import com.aster.core.data.repository.NewsRepository
 import com.aster.core.design_system.theme.AppTheme
 import com.aster.core.localdb.dto.NewsCacheDao
@@ -30,6 +32,9 @@ import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import com.aster.feature.home.api.R as HomeR
+import com.aster.feature.me.api.R as MeR
+import com.aster.feature.saved.api.R as SavedR
 
 class AppNavigationTest {
     @get:Rule
@@ -57,8 +62,12 @@ class AppNavigationTest {
         return restoration
     }
 
-    private fun selectTab(label: String) {
-        compose.onNode(hasText(label) and hasClickAction()).performClick().assertIsSelected()
+    private fun tab(@StringRes labelRes: Int) = compose.onNode(
+        hasText(InstrumentationRegistry.getInstrumentation().targetContext.getString(labelRes)) and hasClickAction()
+    )
+
+    private fun selectTab(@StringRes labelRes: Int) {
+        tab(labelRes).performClick().assertIsSelected()
     }
 
     private fun onBaiduPage(tag: String) = compose.onNode(
@@ -68,14 +77,14 @@ class AppNavigationTest {
     @Test
     fun tabSwitchesStayInsideMainAndBackReturnsDirectlyToHome() {
         render()
-        selectTab("收藏")
-        selectTab("我的")
+        selectTab(SavedR.string.feature_saved_title)
+        selectTab(MeR.string.feature_me_title)
         compose.runOnIdle {
             assertEquals(listOf(MainNavKey), appState.navigationState.backStack.toList())
             backDispatcher.onBackPressed()
         }
         compose.onNodeWithTag("home_page").assertIsDisplayed()
-        compose.onNode(hasText("首页") and hasClickAction()).assertIsSelected()
+        tab(HomeR.string.feature_home_title).assertIsSelected()
     }
 
     @Test
@@ -83,12 +92,12 @@ class AppNavigationTest {
         render()
         compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
         compose.onNodeWithTag("glass_tab_baidu").performClick()
-        onBaiduPage("home_feed").performScrollToIndex(16)
+        onBaiduPage("home_feed").performScrollToIndex(15)
         onBaiduPage("home_article_baidu_15").assertIsDisplayed()
         val initialReads = cache.reads
 
-        selectTab("收藏")
-        selectTab("首页")
+        selectTab(SavedR.string.feature_saved_title)
+        selectTab(HomeR.string.feature_home_title)
         compose.onNodeWithTag("glass_tab_baidu").assertIsSelected()
         onBaiduPage("home_article_baidu_15").assertIsDisplayed()
 
@@ -108,7 +117,7 @@ class AppNavigationTest {
     @Test
     fun restoringSearchRouteRetainsMainTabAndItsBackBehavior() {
         val restoration = render()
-        selectTab("我的")
+        selectTab(MeR.string.feature_me_title)
         compose.runOnIdle { appState.navigator.navigate(SearchNavKey) }
         compose.onNodeWithTag("search_screen").assertIsDisplayed()
 
@@ -118,7 +127,7 @@ class AppNavigationTest {
         compose.onNodeWithTag("liquid_glass_navigation_tabs").assertDoesNotExist()
         compose.onNodeWithTag("search_back").performClick()
         compose.onNodeWithTag("profile_page").assertIsDisplayed()
-        compose.onNode(hasText("我的") and hasClickAction()).assertIsSelected()
+        tab(MeR.string.feature_me_title).assertIsSelected()
         compose.runOnIdle { backDispatcher.onBackPressed() }
         compose.onNodeWithTag("home_page").assertIsDisplayed()
     }

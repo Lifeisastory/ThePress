@@ -16,7 +16,9 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.unit.dp
+import androidx.test.platform.app.InstrumentationRegistry
 import com.aster.core.model.NewsArticle
 import com.aster.core.model.NewsSource
 import com.aster.feature.home.impl.model.HomeUiState
@@ -69,8 +71,6 @@ class HomePageTest {
         onPage("two", "home_article_one_0").assertDoesNotExist()
         onPage("two", "home_article_two_0").assertIsDisplayed().performClick()
         assertEquals("https://example.com/two/0", opened)
-        onPage("two", "home_refresh").performClick()
-        assertEquals(listOf("two"), refreshed)
     }
 
     @Test
@@ -78,7 +78,7 @@ class HomePageTest {
         render()
         compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_one"))
         compose.onNodeWithTag("glass_tab_one").performClick()
-        onPage("one", "home_feed").performScrollToIndex(16)
+        onPage("one", "home_feed").performScrollToIndex(15)
         onPage("one", "home_article_one_15").assertIsDisplayed()
         compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_two"))
         compose.onNodeWithTag("glass_tab_two").performClick()
@@ -103,7 +103,11 @@ class HomePageTest {
 
         pager.performTouchInput { swipeLeft() }
         compose.onNodeWithTag("glass_tab_one").assertIsSelected()
-        compose.onNodeWithTag("home_source_icon").assertContentDescriptionEquals("当前来源：来源一")
+        compose.onNodeWithTag("home_source_icon").assertContentDescriptionEquals(
+            InstrumentationRegistry.getInstrumentation().targetContext.getString(
+                R.string.home_current_source, state.value.feeds.first().source.name
+            )
+        )
         onPage("one", "home_article_one_0").assertIsDisplayed()
         assertEquals("one", state.value.selectedSourceId)
 
@@ -119,6 +123,27 @@ class HomePageTest {
         compose.onNodeWithTag("glass_tab_all").performClick().assertIsSelected()
         assertEquals(null, state.value.selectedSourceId)
         assertEquals(emptyList<String>(), refreshed)
+    }
+
+    @Test
+    fun pullRefreshTargetsCurrentSourceAndIgnoresOtherSourcesLoading() {
+        render()
+        onPage("all", "home_feed").performTouchInput {
+            swipeDown(startY = height * 0.4f, endY = height * 0.95f, durationMillis = 600)
+        }
+        compose.runOnIdle { assertEquals(listOf("all"), refreshed) }
+
+        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_two"))
+        compose.onNodeWithTag("glass_tab_two").performClick()
+        compose.runOnIdle {
+            state.value = state.value.copy(feeds = state.value.feeds.map {
+                it.copy(isLoading = it.source.id == "one")
+            })
+        }
+        onPage("two", "home_feed").performTouchInput {
+            swipeDown(startY = height * 0.4f, endY = height * 0.95f, durationMillis = 600)
+        }
+        compose.runOnIdle { assertEquals(listOf("all", "two"), refreshed) }
     }
 
     @Test

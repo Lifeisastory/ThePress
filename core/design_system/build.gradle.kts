@@ -6,17 +6,14 @@ plugins {
 android {
     namespace = "com.aster.core.design_system"
 
+    defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
     buildFeatures {
         compose = true
     }
 
-}
-
-// 保留平台图标的现有目录，通过 AGP Variant API 将其注册为 assets。
-extensions.configure<com.android.build.api.variant.LibraryAndroidComponentsExtension> {
-    onVariants { variant ->
-        variant.sources.assets?.addStaticSourceDirectory("src/main/kotlin/com/aster/core/design_system/source_icons")
-    }
 }
 
 dependencies {
@@ -36,4 +33,6 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

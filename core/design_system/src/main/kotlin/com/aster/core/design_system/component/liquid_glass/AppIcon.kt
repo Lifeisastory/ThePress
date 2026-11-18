@@ -32,7 +32,7 @@ fun AppIcon(
     backdrop: Backdrop,
     modifier: Modifier = Modifier
 ) {
-    val fallback = rememberAsyncImagePainter("file:///android_asset/default.png")
+    val fallback = rememberAsyncImagePainter("file:///android_asset/source_icons/default.png")
     val platformId = sourceId?.substringBefore('-') ?: "default"
     val surface = MaterialTheme.colorScheme.surface.copy(
         alpha = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) 0.94f else 0.4f
@@ -60,7 +60,7 @@ fun AppIcon(
             label = "Source icon crossfade"
         ) { id ->
             AsyncImage(
-                model = "file:///android_asset/$id.png",
+                model = "file:///android_asset/source_icons/$id.png",
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,

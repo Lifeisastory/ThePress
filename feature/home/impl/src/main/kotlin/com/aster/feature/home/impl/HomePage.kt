@@ -47,6 +47,7 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import com.aster.core.ui.R as UiR
 
 @Composable
 fun HomePage(
@@ -70,7 +71,7 @@ fun HomePage(
             try {
                 uriHandler.openUri(url)
             } catch (_: IllegalArgumentException) {
-                Toast.makeText(context, R.string.home_open_failed, Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, UiR.string.ui_article_open_failed, Toast.LENGTH_SHORT).show()
             }
         }
     )
@@ -145,7 +146,8 @@ internal fun HomePage(
                     onRefreshAll = onRefreshAll,
                     onRefreshSource = onRefreshSource,
                     onOpenArticle = onOpenArticle,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    refreshEnabled = page == visiblePage && !pagerState.isScrollInProgress
                 )
             }
         }

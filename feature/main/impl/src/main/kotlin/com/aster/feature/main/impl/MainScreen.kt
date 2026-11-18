@@ -6,11 +6,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -25,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -56,6 +58,9 @@ internal fun MainScreen(
         drawContent()
     }
     val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    // 统一设计间距；页面避让高度单独计算，避免反馈到导航栏自身的测量
+    val layoutPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
     var navigationBarHeightPx by remember { mutableIntStateOf(0) }
     val safePadding = WindowInsets.safeDrawing.asPaddingValues()
     val topInset = maxOf(statusBarHeight(), safePadding.calculateTopPadding())
@@ -63,10 +68,10 @@ internal fun MainScreen(
     // 实测高度包含玻璃栏外间距及底部系统安全区，取最大值避免重复累加
     val bottomContentInset = maxOf(with(density) { navigationBarHeightPx.toDp() }, bottomInset)
     val contentPadding = PaddingValues(
-        start = 24.dp,
-        end = 24.dp,
-        top = topInset + 24.dp,
-        bottom = bottomContentInset + 16.dp
+        start = layoutPadding.calculateStartPadding(layoutDirection),
+        end = layoutPadding.calculateEndPadding(layoutDirection),
+        top = topInset + layoutPadding.calculateTopPadding(),
+        bottom = bottomContentInset + layoutPadding.calculateBottomPadding()
     )
 
     // 路由转场时 Main 可能仍在组合中，只有当前路由可以处理 Tab 返回
@@ -75,12 +80,18 @@ internal fun MainScreen(
     }
 
     SystemInsets(
-        modifier = modifier.fillMaxSize().testTag("main_screen"),
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("main_screen"),
         backgroundColor = backgroundColor,
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
     ) {
         // 仅录入页面内容，导航栏作为兄弟节点绘制；列表视口保持完整高度
-        Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .layerBackdrop(backdrop)
+        ) {
             savedPages.SaveableStateProvider(selectedTab) {
                 when (selectedTab) {
                     MainTab.Home -> HomePage(repository, contentPadding, onOpenSearch)
@@ -98,8 +109,12 @@ internal fun MainScreen(
                 .align(Alignment.BottomCenter)
                 .onSizeChanged { navigationBarHeightPx = it.height }
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-                .widthIn(max = 420.dp)
+                .padding(
+                    start = layoutPadding.calculateStartPadding(layoutDirection),
+                    end = layoutPadding.calculateEndPadding(layoutDirection),
+                    top = layoutPadding.calculateBottomPadding(),
+                    bottom = layoutPadding.calculateBottomPadding()
+                )
         )
     }
 }

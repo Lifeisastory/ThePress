@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.aster.core.design_system.component.AppRankBadge
@@ -88,23 +87,5 @@ fun NewsArticleCard(
                 )
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun NewsArticleCardPreview() {
-    MaterialTheme {
-        NewsArticleCard(
-            article = NewsArticle(
-                sourceId = "sspai",
-                id = "preview",
-                title = "今天，读点好内容。",
-                url = "https://sspai.com/",
-                summary = "从不同的视角发现值得关注的内容。"
-            ),
-            source = NewsSource("sspai", "少数派 · 热门文章"),
-            onClick = {}
-        )
     }
 }

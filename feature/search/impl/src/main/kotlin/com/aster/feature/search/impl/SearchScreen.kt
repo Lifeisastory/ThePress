@@ -54,6 +54,7 @@ import com.aster.core.design_system.component.liquid_glass.AppSearchBar
 import com.aster.core.ui.NewsArticleCard
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.aster.core.ui.R as UiR
 
 @Composable
 internal fun SearchRoute(
@@ -74,7 +75,7 @@ internal fun SearchRoute(
             try {
                 uriHandler.openUri(url)
             } catch (_: IllegalArgumentException) {
-                Toast.makeText(context, R.string.search_open_failed, Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, UiR.string.ui_article_open_failed, Toast.LENGTH_SHORT).show()
             }
         }
     )

@@ -1,0 +1,3 @@
+<resources>
+    <string name="ui_article_open_failed">未找到能够打开此链接的应用</string>
+</resources>

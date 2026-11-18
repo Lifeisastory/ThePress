@@ -20,5 +20,6 @@ as PNG without cropping or resizing; transparency was preserved:
   xueqiu.png: ICO -> PNG, 48x48
   zaobao.png: ICO -> PNG, 64x64
 
-This directory is registered as an Android assets source in core/design_system/build.gradle.kts.
-Runtime URI: file:///android_asset/<platform-id>.png (default.png is the fallback).
+Canonical location: core/design_system/src/main/assets/source_icons.
+Android includes this directory through the standard src/main/assets source set.
+Runtime URI: file:///android_asset/source_icons/<platform-id>.png (default.png is the fallback).
