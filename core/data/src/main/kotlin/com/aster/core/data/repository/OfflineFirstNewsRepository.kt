@@ -2,8 +2,16 @@ package com.aster.core.data.repository
 
 import com.aster.core.analytics.LogEvent
 import com.aster.core.analytics.LogLevel
+import com.aster.core.analytics.LogOutcome
+import com.aster.core.analytics.LogResponse
 import com.aster.core.analytics.Logger
 import com.aster.core.analytics.NoOpLogger
+import com.aster.core.analytics.RequestLogging
+import com.aster.core.analytics.log
+import com.aster.core.data.asLogResponse
+import com.aster.core.data.logSourceFailure
+import com.aster.core.data.model.toArticle
+import com.aster.core.data.model.toCacheEntity
 import com.aster.core.model.NewsArticle
 import com.aster.core.model.NewsFailureReason
 import com.aster.core.model.NewsRefreshResult
@@ -11,13 +19,13 @@ import com.aster.core.model.NewsSource
 import com.aster.core.model.NewsCacheStats
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.NewsCache
-import com.aster.core.localdb.dto.NewsCacheDao
+import com.aster.core.localdb.dao.NewsCacheDao
 import com.aster.core.localdb.entity.NewsCacheEntity
 import com.aster.core.network.NetworkClient
-import com.aster.core.network.logSourceFailure
 import com.aster.core.network.adapters.AdapterManager
-import com.aster.core.network.model.NetworkError
-import com.aster.core.network.model.NetworkResult
+import com.aster.core.network.dto.SourceItem
+import com.aster.core.model.NetworkError
+import com.aster.core.model.NetworkResult
 import com.aster.core.network.model.SourceDefinition
 import com.aster.core.network.sources.BuiltInSources
 import kotlinx.coroutines.CancellationException
@@ -40,7 +48,7 @@ internal class OfflineFirstNewsRepository(
     private val currentTimeMillis: () -> Long = System::currentTimeMillis
 ) : NewsRepository {
     private val adapters = AdapterManager(client, definitions)
-    private val requestLogging = DataRequestLogging(logger)
+    private val requestLogging = RequestLogging(logger)
     private val sourceLocks = definitions.associate { it.id to Mutex() }
     override val sources: List<NewsSource> = definitions.map { NewsSource(it.id, it.name) }
 
@@ -53,9 +61,9 @@ internal class OfflineFirstNewsRepository(
         try {
             sourceLocks.values.forEach { lock -> lock.lock(); locked.add(lock) }
             requestLogging.trace(
-                origin = "LOCAL_DATABASE", operation = "DELETE",
+                origin = "LOCAL_DATABASE", operation = "DELETE", resource = "news",
                 request = { buildJsonObject { put("scope", "all_news_cache") } },
-                describe = { buildJsonObject { put("outcome", "SUCCESS") } }
+                describe = { LogResponse(LogOutcome.SUCCESS) }
             ) { cacheDao.clearCache() }
         } finally {
             locked.asReversed().forEach { it.unlock() }
@@ -63,7 +71,7 @@ internal class OfflineFirstNewsRepository(
     }
 
     override fun observeNews(): Flow<List<NewsArticle>> = requestLogging.observe(
-        origin = "LOCAL_DATABASE",
+        origin = "LOCAL_DATABASE", resource = "news",
         request = { buildJsonObject { put("scope", "all_sources") } },
         describe = { it.asLogResponse() }
     ) {
@@ -78,6 +86,7 @@ internal class OfflineFirstNewsRepository(
             sourceId = sourceId,
             origin = "LOCAL_DATABASE",
             operation = "SEARCH",
+            resource = "news",
             request = { buildJsonObject {
                 put("query", query.trim())
                 put("sourceId", sourceId?.let(::JsonPrimitive) ?: JsonNull)
@@ -98,7 +107,7 @@ internal class OfflineFirstNewsRepository(
         // 同一来源的并发调用在锁内重新检查缓存，不同来源仍可并行请求
         return lock.withLock {
             val cached = accessCache(sourceId) {
-                requestLogging.trace(sourceId, "LOCAL_DATABASE", "READ", describe = { (cache, fresh) ->
+                requestLogging.trace(sourceId, "LOCAL_DATABASE", "READ", resource = "news", describe = { (cache, fresh) ->
                     cache.asLogResponse(fresh)
                 }) {
                     val cache = cacheDao.read(sourceId)
@@ -114,25 +123,18 @@ internal class OfflineFirstNewsRepository(
     }
 
     private suspend fun refreshFromNetwork(sourceId: String): NewsRefreshResult {
-        val result = requestLogging.trace(sourceId, "NETWORK", "FETCH", describe = { result ->
-            when (result) {
-                is NetworkResult.Success -> result.data.map {
-                    it.toArticle()
-                }.asLogResponse()
-                is NetworkResult.Failure -> result.error.toRefreshFailure().asLogResponse()
-            }
-        }) {
+        val result = requestLogging.trace(sourceId, "NETWORK", "FETCH", resource = "news", describe = ::describeNetworkResult) {
             adapters.fetch(sourceId)
         }
         return when (result) {
             is NetworkResult.Success -> {
                 val articles = result.data.map { it.toArticle() }
                 val persisted = accessCache(sourceId) {
-                    requestLogging.trace(sourceId, "LOCAL_DATABASE", "WRITE", request = {
+                    requestLogging.trace(sourceId, "LOCAL_DATABASE", "WRITE", resource = "news", request = {
                         buildJsonObject {
                             put("sourceId", sourceId)
                             put("count", articles.size)
-                            put("articles", articles.asLogResponse().getValue("articles"))
+                            put("articles", articles.asLogResponse().payload.getValue("articles"))
                         }
                     }, describe = { articles.asLogResponse() }) {
                         cacheDao.replace(NewsCache(
@@ -154,6 +156,11 @@ internal class OfflineFirstNewsRepository(
         }
     }
 
+    private fun describeNetworkResult(result: NetworkResult<List<SourceItem>>): LogResponse = when (result) {
+        is NetworkResult.Success -> result.data.map { it.toArticle() }.asLogResponse()
+        is NetworkResult.Failure -> result.error.toRefreshFailure().asLogResponse()
+    }
+
     private fun NetworkError.toRefreshFailure(): NewsRefreshResult.Failure = when (this) {
         is NetworkError.Connection -> NewsRefreshResult.Failure(NewsFailureReason.CONNECTION)
         is NetworkError.Timeout -> NewsRefreshResult.Failure(NewsFailureReason.TIMEOUT)
@@ -168,7 +175,7 @@ internal class OfflineFirstNewsRepository(
     } catch (error: CancellationException) {
         throw error
     } catch (error: Exception) {
-        logger.log(LogEvent("cache_failed", "cache", LogLevel.WARN, mapOf("sourceId" to sourceId), error))
+        logger.log { LogEvent("cache_failed", "cache", LogLevel.WARN, mapOf("sourceId" to sourceId), error) }
         null
     }
 

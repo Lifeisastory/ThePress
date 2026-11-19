@@ -1,22 +1,22 @@
-package com.aster.core.network
+package com.aster.core.data
 
 import com.aster.core.analytics.LogEvent
 import com.aster.core.analytics.LogLevel
 import com.aster.core.analytics.Logger
-import com.aster.core.network.model.NetworkError
-import com.aster.core.network.model.ProcessingStage
-import okhttp3.Headers
+import com.aster.core.model.HttpHeaders
+import com.aster.core.model.NetworkError
+import com.aster.core.model.ProcessingStage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Test
 
-class NetworkDiagnosticsTest {
+class NewsLogResponseTest {
     @Test
     fun httpDiagnosticsExcludeHeadersBodyAndMessage() {
         val events = mutableListOf<LogEvent>()
         Logger(events::add).logSourceFailure("baidu", NetworkError.Http(
-            403, "private-message", Headers.headersOf("Set-Cookie", "private-cookie"), "private-body"
+            403, "private-message", HttpHeaders(listOf("Set-Cookie" to "private-cookie")), "private-body"
         ))
         val event = events.single()
         assertEquals("source_failed", event.name)

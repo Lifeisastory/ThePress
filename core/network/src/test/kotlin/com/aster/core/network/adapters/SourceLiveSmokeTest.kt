@@ -1,8 +1,8 @@
 package com.aster.core.network.adapters
 
 import com.aster.core.network.NetworkClient
-import com.aster.core.network.model.NetworkError
-import com.aster.core.network.model.NetworkResult
+import com.aster.core.model.NetworkError
+import com.aster.core.model.NetworkResult
 import com.aster.core.network.sources.BuiltInSources
 import java.io.File
 import java.net.InetSocketAddress

@@ -11,8 +11,8 @@ import com.aster.core.network.adapters.request.SourceRequestStrategy
 import com.aster.core.network.model.HttpMethod
 import com.aster.core.network.model.HttpRequestSpec
 import com.aster.core.network.model.ItemMapping
-import com.aster.core.network.model.NetworkError
-import com.aster.core.network.model.NetworkResult
+import com.aster.core.model.NetworkError
+import com.aster.core.model.NetworkResult
 import com.aster.core.network.model.SourceDefinition
 import com.aster.core.network.model.SourceCredentials
 import com.aster.core.network.model.UrlMapping

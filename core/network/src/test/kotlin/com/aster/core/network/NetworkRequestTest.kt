@@ -1,7 +1,7 @@
 package com.aster.core.network
 
-import com.aster.core.network.model.NetworkError
-import com.aster.core.network.model.NetworkResult
+import com.aster.core.model.NetworkError
+import com.aster.core.model.NetworkResult
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -46,7 +46,10 @@ class NetworkRequestTest {
     fun httpFailureKeepsStatusHeadersAndErrorBody() = runBlocking {
         val body = """{"message":"稍后重试"}"""
         server.enqueue(
-            MockResponse.Builder().code(429).addHeader("Retry-After", "60").body(body).build()
+            MockResponse.Builder().code(429).addHeader("Retry-After", "60")
+                .addHeader("Set-Cookie", "first=1")
+                .addHeader("set-cookie", "second=2")
+                .body(body).build()
         )
 
         val result = networkRequest { api.article("test", "client") }
@@ -54,6 +57,9 @@ class NetworkRequestTest {
 
         assertEquals(429, error.code)
         assertEquals("60", error.headers["Retry-After"])
+        assertEquals("60", error.headers["retry-after"])
+        assertEquals(listOf("first=1", "second=2"), error.headers.values("SET-COOKIE"))
+        assertEquals("second=2", error.headers["Set-Cookie"])
         assertEquals(body, error.body)
         assertEquals(1, server.requestCount)
     }

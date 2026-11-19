@@ -2,7 +2,7 @@ package com.aster.core.network.adapters.extract
 
 import com.aster.core.network.adapters.AdapterException
 import com.aster.core.network.dto.HttpPayload
-import com.aster.core.network.model.ProcessingStage
+import com.aster.core.model.ProcessingStage
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject

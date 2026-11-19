@@ -5,7 +5,7 @@ import com.aster.core.network.adapters.mapping.JsonPath
 import com.aster.core.network.dto.SourceItem
 import com.aster.core.network.model.ItemMapping
 import com.aster.core.network.model.JsonFieldEquals
-import com.aster.core.network.model.ProcessingStage
+import com.aster.core.model.ProcessingStage
 import com.aster.core.network.model.UrlMapping
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive

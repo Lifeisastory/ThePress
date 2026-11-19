@@ -4,7 +4,7 @@ import com.aster.core.network.adapters.extract.EmbeddedJsonExtractor
 import com.aster.core.network.adapters.extract.JsonExtractor
 import com.aster.core.network.adapters.mapping.JsonPath
 import com.aster.core.network.dto.HttpPayload
-import com.aster.core.network.model.ProcessingStage
+import com.aster.core.model.ProcessingStage
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive

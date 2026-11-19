@@ -2,7 +2,7 @@ package com.aster.core.data.repository
 
 import com.aster.core.agent.*
 import com.aster.core.analytics.*
-import com.aster.core.localdb.dto.NewsDigestDao
+import com.aster.core.localdb.dao.NewsDigestDao
 import com.aster.core.localdb.entity.NewsDigestEntity
 import com.aster.core.model.*
 import kotlinx.coroutines.*

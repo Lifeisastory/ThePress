@@ -2,7 +2,12 @@ package com.aster.core.data.repository
 
 import com.aster.core.agent.*
 import com.aster.core.analytics.Logger
-import com.aster.core.localdb.dto.NewsDigestDao
+import com.aster.core.analytics.LogOutcome
+import com.aster.core.analytics.LogResponse
+import com.aster.core.agent.model.DigestGenerationException
+import com.aster.core.agent.generator.DigestGenerator
+import com.aster.core.analytics.RequestLogging
+import com.aster.core.localdb.dao.NewsDigestDao
 import com.aster.core.localdb.entity.NewsDigestEntity
 import com.aster.core.model.*
 import kotlinx.coroutines.*
@@ -22,16 +27,13 @@ internal class DefaultNewsDigestRepository(
     private val clock: () -> Long = System::currentTimeMillis
 ) : NewsDigestRepository {
     private val json = Json { ignoreUnknownKeys = true }
-    private val logs = DataRequestLogging(logger)
+    private val logs = RequestLogging(logger)
     private val generator = DigestGenerator(client, logger)
     private val lock = Mutex()
 
     override fun observeLatestDigest(): Flow<NewsDigest?> = logs.observe(
         origin = "LOCAL_DATABASE", resource = "news_digest", request = { buildJsonObject {} },
-        describe = { digest -> buildJsonObject {
-            put("outcome", if (digest == null) "MISS" else "SUCCESS")
-            put("digest", digest?.let { json.encodeToJsonElement(NewsDigest.serializer(), it) } ?: JsonNull)
-        } }
+        describe = ::describeDigest
     ) {
         dao.observeLatest().map { it?.let { json.decodeFromString(NewsDigest.serializer(), it.payload) } }
     }.flowOn(Dispatchers.Default)
@@ -41,7 +43,7 @@ internal class DefaultNewsDigestRepository(
         try {
             val config = settings.settings.first()
             val key = logs.trace(origin = "LOCAL_PREFERENCES", operation = "READ", resource = "llm_credentials",
-                describe = { buildJsonObject { put("outcome", "SUCCESS"); put("configured", it.isNotBlank()) } }
+                describe = ::describeCredentials
             ) { apiKey.first() }
             if (key.isBlank()) throw DigestGenerationException(DigestFailure.NOT_CONFIGURED)
             val sources = news.sources.filter { it.id in config.sourceIds }
@@ -66,7 +68,7 @@ internal class DefaultNewsDigestRepository(
             currentCoroutineContext().ensureActive()
             logs.trace(origin = "LOCAL_DATABASE", operation = "WRITE", resource = "news_digest",
                 request = { buildJsonObject { put("digest", json.encodeToJsonElement(NewsDigest.serializer(), digest)) } },
-                describe = { buildJsonObject { put("outcome", "SUCCESS") } }) {
+                describe = { LogResponse(LogOutcome.SUCCESS) }) {
                 dao.save(NewsDigestEntity(payload = json.encodeToString(NewsDigest.serializer(), digest)))
             }
             DigestGenerationResult.Success
@@ -90,4 +92,15 @@ internal class DefaultNewsDigestRepository(
             DigestGenerationResult.Failure(DigestFailure.STORAGE)
         } finally { lock.unlock() }
     }
+
+    private fun describeDigest(digest: NewsDigest?) = LogResponse(
+        if (digest == null) LogOutcome.MISS else LogOutcome.SUCCESS,
+        buildJsonObject {
+            put("digest", digest?.let { json.encodeToJsonElement(NewsDigest.serializer(), it) } ?: JsonNull)
+        }
+    )
+
+    private fun describeCredentials(key: String) = LogResponse(LogOutcome.SUCCESS, buildJsonObject {
+        put("configured", key.isNotBlank())
+    })
 }

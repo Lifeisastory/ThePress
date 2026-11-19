@@ -1,4 +1,4 @@
-package com.aster.core.data.repository
+package com.aster.core.data.model
 
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.CachedStockInfo

@@ -5,11 +5,11 @@ import androidx.room.Database
 import androidx.room.AutoMigration
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.aster.core.localdb.dto.NewsCacheDao
+import com.aster.core.localdb.dao.NewsCacheDao
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.NewsCacheEntity
 import com.aster.core.localdb.entity.NewsDigestEntity
-import com.aster.core.localdb.dto.NewsDigestDao
+import com.aster.core.localdb.dao.NewsDigestDao
 
 @Database(
     entities = [NewsCacheEntity::class, CachedNewsArticleEntity::class, NewsDigestEntity::class],

@@ -1,7 +1,7 @@
 package com.aster.core.network.adapters.mapping
 
 import com.aster.core.network.adapters.AdapterException
-import com.aster.core.network.model.ProcessingStage
+import com.aster.core.model.ProcessingStage
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull

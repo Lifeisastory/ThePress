@@ -4,7 +4,7 @@ import com.aster.core.network.adapters.AdapterException
 import com.aster.core.network.dto.HttpPayload
 import com.aster.core.network.model.HttpMethod
 import com.aster.core.network.model.HttpRequestSpec
-import com.aster.core.network.model.ProcessingStage
+import com.aster.core.model.ProcessingStage
 import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException

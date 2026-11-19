@@ -4,19 +4,27 @@
 
 ## 使用方式
 
-Application 创建并复用 `Analytics.createLogger(this)`，交给 `AppDataContainer` 注入内部的 `OfflineFirstNewsRepository` 和 `DefaultUserPreferencesRepository`。是否启用日志只在此工厂内判断：Debug 使用 `LogcatLogger`，非 Debug 使用 `NoOpLogger`。业务模块依赖 `Logger`，不直接使用 Android `Log`。应用默认不再向 `NetworkClient` 注入日志实例，避免底层 HTTP 调用重复打印；排查多步请求时仍可手动注入，启用原有 HTTP 诊断事件。
+Application 创建并复用 `Analytics.createLogger(this)`，交给 `AppData` 注入内部的 `OfflineFirstNewsRepository` 和 `DefaultUserPreferencesRepository`。是否启用日志只在此工厂内判断：Debug 使用 `LogcatLogger`，非 Debug 使用 `NoOpLogger`。业务模块依赖 `Logger`，不直接使用 Android `Log`。
 
 ```kotlin
-logger.log(LogEvent(
-    name = "cache_failed",
-    category = "cache",
-    level = LogLevel.WARN,
-    attributes = mapOf("sourceId" to sourceId),
-    cause = error
-))
+logger.log {
+    LogEvent(
+        name = "cache_failed",
+        category = "cache",
+        level = LogLevel.WARN,
+        attributes = mapOf("sourceId" to sourceId),
+        cause = error
+    )
+}
 ```
 
-`LogEvent` 承载事件名称、分类、级别、结构化字段、可选异常和 JSON 类型的 `request` / `response`。数据仓库使用 `DataRequestLogging` 记录单次访问或 Flow 订阅；`LogFormatter` 统一格式，`LogcatLogger` 是唯一打印出口。测试可以使用 `Logger { events.add(it) }` 收集事件，无需 Android Logcat。
+`LogEvent` 承载事件名称、分类、级别、结构化字段、可选异常和 JSON 类型的 `request` / `response`。数据仓库和摘要生成器使用本模块的 `RequestLogging` 记录单次访问或 Flow 订阅；`LogFormatter` 统一格式，`LogcatLogger` 是唯一打印出口。测试可以使用 `Logger { events.add(it) }` 收集事件，无需 Android Logcat。
+
+`RequestLogging.trace()`、`observe()` 统一管理请求编号、耗时、成功、失败与取消。调用方显式传入 `resource`，`request` 返回 JSON，`describe` 返回 `LogResponse(outcome, payload)`；`outcome` 使用 `LogOutcome` 枚举，`payload` 只承载业务字段。框架根据显式状态生成日志属性和响应 JSON 中的 `outcome`，忽略 payload 中同名字段，不要求调用方手动填写 JSON 状态。新闻、缓存等业务转换保留在 `core:data`，摘要转换保留在 `core:agent`，本模块不依赖这些业务模块。公开 API 使用 `Flow` 和 JSON 类型，因此通过 `api` 暴露协程及序列化 JSON 依赖。
+
+日志构造和输出与业务异常处理分开：普通日志异常不会阻止或重试业务操作，不改变返回值、Flow 发射顺序或订阅次数，也不会替换业务异常或协程取消。请求描述失败时保留 `loggingErrorType`；响应描述失败时记为 `UNKNOWN`，而非业务失败。诊断只记录日志异常的类型，不记录异常消息。输出失败时丢弃该条日志，不通过同一个出口递归报错。
+
+单条事件使用 `Logger.log { ... }`，同样隔离同步日志构造及输出的 `Exception`；回调内只放日志代码。日志回调自行抛出的 `CancellationException` 也按日志故障隔离，业务 block、上游 Flow 和下游收集者的取消仍原样传播。这些保护不捕获 JVM 致命错误，日志回调仍同步执行，应保持轻量。`NoOpLogger` 不执行请求、响应或事件构造回调。
 
 ## 已接入事件
 
@@ -55,7 +63,7 @@ response=
 }
 ```
 
-`origin` 为 `NETWORK`、`LOCAL_DATABASE` 或 `LOCAL_PREFERENCES`；`operation` 为 `FETCH`、`READ`、`WRITE`、`OBSERVE` 或 `SEARCH`。`resource` 区分 `news` 和 `user_preferences`。数据库有效期检查区分 `HIT`、`MISS`、`EXPIRED`，网络、写入和流数据响应为 `SUCCESS`，失败为 `FAILED`，取消为 `CANCELED`，流自然结束为 `COMPLETED`。请求开始、数据响应和正常结束使用 DEBUG，失败结束和缓存错误使用 WARN，来源失败诊断使用 ERROR。
+`origin` 标记 `NETWORK`、`LOCAL_DATABASE`、`LOCAL_PREFERENCES` 或 `LOCAL_PROCESSING`；`operation`、`resource` 由调用方描述操作和资源。数据库有效期检查区分 `HIT`、`MISS`、`EXPIRED`，网络、写入和流数据响应为 `SUCCESS`，失败为 `FAILED`，取消为 `CANCELED`，流自然结束为 `COMPLETED`，摘要遗漏补全为 `PARTIAL`，日志无法描述结果为 `UNKNOWN`。请求开始及正常响应使用 DEBUG，`FAILED`、`UNKNOWN` 和缓存错误使用 WARN，来源失败诊断使用 ERROR。
 
 每次有效期检查、网络加载和数据库写入都有独立的开始/完成配对。一次刷新未命中时的顺序为数据库读取未命中 → 网络开始/完成 → 数据库写入开始/完成；网络耗时包含适配器抓取与解析，不再包含数据库写入。命中时该次刷新只有数据库读取。数据库命中/过期响应与网络成功响应都包含统一文章字段，写入请求及成功响应包含文章列表，空列表输出 `articles: []`。网络成功与写入失败分别记录，不将网络成功误认为持久化成功。
 

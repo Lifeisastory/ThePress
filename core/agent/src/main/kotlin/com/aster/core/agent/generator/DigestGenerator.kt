@@ -1,28 +1,22 @@
-package com.aster.core.data.repository
+package com.aster.core.agent.generator
 
 import com.aster.core.agent.LlmClient
 import com.aster.core.agent.LlmRequest
 import com.aster.core.agent.LlmException
 import com.aster.core.agent.LlmResponse
 import com.aster.core.analytics.Logger
+import com.aster.core.analytics.LogOutcome
+import com.aster.core.analytics.LogResponse
+import com.aster.core.agent.model.DigestGenerationException
+import com.aster.core.analytics.RequestLogging
+import com.aster.core.agent.model.DigestValidation
 import com.aster.core.model.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.*
 
-internal class DigestGenerationException(
-    val reason: DigestFailure,
-    val diagnostics: JsonObject = buildJsonObject { put("reason", reason.name) }
-) : Exception(reason.name)
-
-internal data class DigestValidation(
-    val items: List<JsonObject>,
-    val missingIds: Set<String>,
-    val diagnostics: JsonObject
-)
-
 /** 一次请求总结全部输入新闻，用应用保存的来源快照还原链接 */
-internal class DigestGenerator(private val client: LlmClient, logger: Logger) {
-    private val logs = DataRequestLogging(logger)
+class DigestGenerator(private val client: LlmClient, logger: Logger) {
+    private val logs = RequestLogging(logger)
 
     suspend fun generate(references: List<DigestReference>, settings: DigestSettings, key: String): List<DigestItem> {
         val inputs = references.map { ref -> buildJsonObject {
@@ -70,26 +64,13 @@ internal class DigestGenerator(private val client: LlmClient, logger: Logger) {
             request = { buildJsonObject {
                 put("provider", "deepseek"); put("model", settings.model)
                 put("system", system); put("input", input)
-            } }, describe = { result: Result<LlmResponse> -> result.fold(
-                onSuccess = { buildJsonObject {
-                    put("outcome", "SUCCESS"); put("content", it.content); put("usage", it.usage)
-                } },
-                onFailure = { error -> buildJsonObject {
-                    put("outcome", "FAILED")
-                    val failure = error as LlmException
-                    put("reason", failure.reason.name)
-                    put("httpCode", failure.httpCode?.let(::JsonPrimitive) ?: JsonNull)
-                } }
-            ) }) {
+            } }, describe = ::describeLlmResponse) {
                 try { Result.success(client.generate(LlmRequest(settings.model, system, input.toString()), key)) }
                 catch (error: LlmException) { Result.failure(error) }
             }.getOrThrow()
         return logs.trace(origin = "LOCAL_PROCESSING", operation = "VALIDATE", resource = "digest",
             request = { buildJsonObject { put("inputCount", expected.size) } },
-            describe = { result: Result<DigestValidation> -> result.fold(
-                onSuccess = { it.diagnostics },
-                onFailure = { (it as DigestGenerationException).diagnostics }
-            ) }
+            describe = ::describeValidation
         ) {
             try { Result.success(validate(response.content, expected)) }
             catch (error: DigestGenerationException) { Result.failure(error) }
@@ -115,7 +96,6 @@ internal class DigestGenerator(private val client: LlmClient, logger: Logger) {
         val unknown = ids.toSet() - expected
         val duplicates = ids.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
         val diagnostics = buildJsonObject {
-            put("outcome", if (unknown.isNotEmpty()) "FAILED" else if (missing.isNotEmpty()) "PARTIAL" else "SUCCESS")
             put("inputCount", expected.size); put("itemCount", items.size)
             put("referencedCount", (ids.toSet() intersect expected).size)
             put("missingIds", JsonArray(missing.map(::JsonPrimitive)))
@@ -133,7 +113,27 @@ internal class DigestGenerator(private val client: LlmClient, logger: Logger) {
         throw error
     } catch (_: Exception) {
         throw DigestGenerationException(DigestFailure.INVALID_RESPONSE, buildJsonObject {
-            put("outcome", "FAILED"); put("reason", "INVALID_STRUCTURE")
+            put("reason", "INVALID_STRUCTURE")
         })
     }
+
+    private fun describeLlmResponse(result: Result<LlmResponse>): LogResponse = result.fold(
+        onSuccess = { LogResponse(LogOutcome.SUCCESS, buildJsonObject {
+            put("content", it.content)
+            put("usage", it.usage)
+        }) },
+        onFailure = { error -> LogResponse(LogOutcome.FAILED, buildJsonObject {
+            val failure = error as LlmException
+            put("reason", failure.reason.name)
+            put("httpCode", failure.httpCode?.let(::JsonPrimitive) ?: JsonNull)
+        }) }
+    )
+
+    private fun describeValidation(result: Result<DigestValidation>): LogResponse = result.fold(
+        onSuccess = { LogResponse(
+            if (it.missingIds.isEmpty()) LogOutcome.SUCCESS else LogOutcome.PARTIAL,
+            it.diagnostics
+        ) },
+        onFailure = { LogResponse(LogOutcome.FAILED, (it as DigestGenerationException).diagnostics) }
+    )
 }

@@ -1,10 +1,11 @@
-package com.aster.core.localdb.dto
+package com.aster.core.localdb.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import com.aster.core.localdb.dto.NewsCacheSize
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.NewsCache
 import com.aster.core.localdb.entity.NewsCacheEntity
@@ -71,5 +72,3 @@ abstract class NewsCacheDao {
         insertArticles(cache.articles)
     }
 }
-
-data class NewsCacheSize(val articleCount: Long, val contentBytes: Long)

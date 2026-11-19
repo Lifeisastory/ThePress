@@ -1,7 +1,5 @@
 package com.aster.core.network
 
-import com.aster.core.analytics.Logger
-import com.aster.core.analytics.NoOpLogger
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -17,7 +15,7 @@ import retrofit2.converter.scalars.ScalarsConverterFactory
  * 可以传入自定义 [httpClient] 配置超时、拦截器或 CookieJar
  */
 class NetworkClient(
-    httpClient: OkHttpClient = OkHttpClient.Builder()
+    val httpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .writeTimeout(20, TimeUnit.SECONDS)
@@ -25,14 +23,8 @@ class NetworkClient(
         .build(),
     val json: Json = Json {
         ignoreUnknownKeys = true
-    },
-    logger: Logger = NoOpLogger
-) {
-    /** 启用日志时统一安装请求监听器，子流程 newBuilder() 会继承此配置 */
-    val httpClient: OkHttpClient = if (logger === NoOpLogger) httpClient else {
-        httpClient.newBuilder().eventListenerFactory { RequestLoggingListener(logger) }.build()
     }
-
+) {
     /** [baseUrl] 必须以 / 结尾；String 响应按原始文本读取，DTO 使用 JSON 序列化 */
     fun <T : Any> createService(baseUrl: String, serviceClass: Class<T>): T =
         Retrofit.Builder()

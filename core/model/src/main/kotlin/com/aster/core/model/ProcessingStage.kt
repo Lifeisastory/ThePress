@@ -1,4 +1,4 @@
-package com.aster.core.network.model
+package com.aster.core.model
 
 enum class ProcessingStage {
     SOURCE,

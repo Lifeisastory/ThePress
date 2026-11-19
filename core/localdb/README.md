@@ -2,6 +2,8 @@
 
 `AppDataBase` 是应用级 Room 入口，由 `core:data` 的 `AppDataContainer` 在进程内持有。数据库继续使用 `news.db` 文件以兼容已有安装；app 和 feature 不直接依赖本模块，只通过 data 的仓库访问。
 
+模块内按职责划分包：`dao` 存放 `NewsCacheDao`、`NewsDigestDao` 等数据库访问对象，`entity` 存放持久化实体及关联结构，`dto` 存放 `NewsCacheSize` 等查询结果对象。包结构调整不改变表结构和数据库版本。
+
 - `news_cache`：每个来源最近一次成功请求的时间戳（毫秒）。
 - `cached_news_articles`：该来源的完整文章列表，按 `position` 保存原始榜单顺序。
 - `NewsCacheDao.read/replace` 使用事务，确保列表和时间戳一致；替换时删除该来源的旧条目，不影响其他来源。空结果也保留时间戳。

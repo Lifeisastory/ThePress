@@ -1,4 +1,4 @@
-package com.aster.core.localdb.dto
+package com.aster.core.localdb.dao
 
 import androidx.room.Dao
 import androidx.room.Query

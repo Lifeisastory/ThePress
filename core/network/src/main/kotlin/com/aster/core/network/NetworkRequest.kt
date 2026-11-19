@@ -1,14 +1,14 @@
 package com.aster.core.network
 
-import com.aster.core.network.model.NetworkError
-import com.aster.core.network.model.NetworkResult
+import com.aster.core.model.HttpHeaders
+import com.aster.core.model.NetworkError
+import com.aster.core.model.NetworkResult
 import java.io.IOException
 import java.io.InterruptedIOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
-import okhttp3.Headers.Companion.headersOf
 import retrofit2.HttpException
 import retrofit2.Response
 
@@ -31,6 +31,7 @@ suspend fun <T> networkRequest(block: suspend () -> T): NetworkResult<T> =
             throw error
         } catch (error: HttpException) {
             val response = error.response()
+            val headers = response?.headers()
             val body = try {
                 response?.errorBody()?.use { it.string() }
             } catch (_: IOException) {
@@ -41,7 +42,9 @@ suspend fun <T> networkRequest(block: suspend () -> T): NetworkResult<T> =
                 NetworkError.Http(
                     code = error.code(),
                     message = error.message(),
-                    headers = response?.headers() ?: headersOf(),
+                    headers = HttpHeaders(headers?.let {
+                        List(it.size) { index -> it.name(index) to it.value(index) }
+                    }.orEmpty()),
                     body = body
                 )
             )

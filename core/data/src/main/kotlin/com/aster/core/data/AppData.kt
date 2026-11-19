@@ -17,7 +17,7 @@ import com.aster.core.data.repository.NewsDigestRepository
 import com.aster.core.data.repository.DefaultNewsDigestRepository
 
 /** 由 Application 持有一个实例，统一管理数据依赖；只向外暴露仓库 */
-class AppDataContainer(context: Context, private val logger: Logger = NoOpLogger) {
+class AppData(context: Context, private val logger: Logger = NoOpLogger) {
     private val appContext = context.applicationContext
     private val database by lazy { AppDataBase.create(appContext) }
     private val preferences by lazy { AppSharedPreferences(appContext) }

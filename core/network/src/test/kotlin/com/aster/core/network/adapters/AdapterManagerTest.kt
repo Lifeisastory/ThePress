@@ -6,9 +6,9 @@ import com.aster.core.network.adapters.mapping.JsonPath
 import com.aster.core.network.dto.SourceItem
 import com.aster.core.network.model.HttpRequestSpec
 import com.aster.core.network.model.ItemMapping
-import com.aster.core.network.model.NetworkError
-import com.aster.core.network.model.NetworkResult
-import com.aster.core.network.model.ProcessingStage
+import com.aster.core.model.NetworkError
+import com.aster.core.model.NetworkResult
+import com.aster.core.model.ProcessingStage
 import com.aster.core.network.model.SourceDefinition
 import com.aster.core.network.model.UrlMapping
 import com.aster.core.network.sources.BuiltInSources

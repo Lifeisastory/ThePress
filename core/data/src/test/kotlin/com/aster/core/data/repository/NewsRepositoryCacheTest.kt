@@ -60,7 +60,7 @@ class NewsRepositoryCacheTest {
         repository = createRepository()
     }
 
-    private fun createRepository() = OfflineFirstNewsRepository(
+    private fun createRepository(logger: Logger? = null) = OfflineFirstNewsRepository(
         client, cache,
         definitions = listOf("one", "two").map { id ->
             SourceDefinition(id, id, HttpRequestSpec(server.url("/$id")), ItemMapping(
@@ -70,7 +70,7 @@ class NewsRepositoryCacheTest {
             ))
         },
         currentTimeMillis = { now },
-        logger = Logger { event ->
+        logger = logger ?: Logger { event ->
             events.add(event)
             if (event.name == "cache_failed") {
                 assertEquals("cache", event.category)
@@ -90,6 +90,37 @@ class NewsRepositoryCacheTest {
 
     private fun enqueue(id: String) {
         server.enqueue(MockResponse(body = """[{"id":"$id","title":"Title $id","url":"https://example.com/$id"}]"""))
+    }
+
+    @Test(timeout = 10_000)
+    fun loggingFailureDoesNotTurnPersistedRefreshIntoFailure() = runBlocking {
+        val repository = createRepository(Logger { error("log sink unavailable") })
+        enqueue("new")
+
+        assertEquals(NewsRefreshResult.Success, repository.refresh("one"))
+        assertEquals("new", cache.read("one")!!.articles.single().id)
+        assertEquals("new", repository.observeNews().first().single().id)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test(timeout = 10_000)
+    fun loggingFailureDoesNotReplaceNetworkFailure() = runBlocking {
+        val repository = createRepository(Logger { error("log sink unavailable") })
+        server.enqueue(MockResponse(code = 503, body = "unavailable"))
+
+        assertEquals(NewsRefreshResult.Failure(NewsFailureReason.HTTP, 503), repository.refresh("one"))
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test(timeout = 10_000)
+    fun loggingFailureDoesNotReplaceStorageFailure() = runBlocking {
+        val repository = createRepository(Logger { error("log sink unavailable") })
+        cache.writeError = IllegalStateException("disk full")
+        enqueue("new")
+
+        assertEquals(NewsRefreshResult.Failure(NewsFailureReason.STORAGE), repository.refresh("one"))
+        assertTrue(repository.observeNews().first().isEmpty())
+        assertEquals(1, server.requestCount)
     }
 
     @Test(timeout = 10_000)

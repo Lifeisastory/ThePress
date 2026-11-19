@@ -8,3 +8,13 @@ fun interface Logger {
 object NoOpLogger : Logger {
     override fun log(event: LogEvent) = Unit
 }
+
+/** 仅保护同步日志构造和输出；调用方的业务操作不应放进此回调 */
+fun Logger.log(event: () -> LogEvent) {
+    if (this === NoOpLogger) return
+    try {
+        log(event())
+    } catch (_: Exception) {
+        // 不再次写日志，避免日志出口故障引起递归；不捕获 JVM 致命错误。
+    }
+}

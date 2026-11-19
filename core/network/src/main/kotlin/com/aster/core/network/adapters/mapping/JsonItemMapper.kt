@@ -5,7 +5,7 @@ import com.aster.core.network.dto.SourceItem
 import com.aster.core.network.dto.SourceStockInfo
 import com.aster.core.network.model.StockMapping
 import com.aster.core.network.model.ItemMapping
-import com.aster.core.network.model.ProcessingStage
+import com.aster.core.model.ProcessingStage
 import com.aster.core.network.model.UrlMapping
 import java.net.URLEncoder
 import kotlinx.serialization.json.JsonArray

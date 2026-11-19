@@ -7,7 +7,7 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.aster.core.localdb.dto.NewsCacheDao
+import com.aster.core.localdb.dao.NewsCacheDao
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.CachedStockInfo
 import com.aster.core.localdb.entity.NewsDigestEntity

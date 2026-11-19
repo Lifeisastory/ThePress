@@ -1,7 +1,10 @@
 package com.aster.core.data.repository
 
 import com.aster.core.analytics.Logger
+import com.aster.core.analytics.LogOutcome
+import com.aster.core.analytics.LogResponse
 import com.aster.core.analytics.NoOpLogger
+import com.aster.core.analytics.RequestLogging
 import com.aster.core.model.AppearanceSettings
 import com.aster.core.model.ThemeMode
 import com.aster.core.model.ThemeColor
@@ -19,16 +22,12 @@ internal class DefaultUserPreferencesRepository(
     private val persistThemeColor: suspend (ThemeColor) -> Unit,
     logger: Logger = NoOpLogger
 ) : UserPreferencesRepository {
-    private val requestLogging = DataRequestLogging(logger)
+    private val requestLogging = RequestLogging(logger)
     override val appearance = requestLogging.observe(
         origin = "LOCAL_PREFERENCES",
         resource = "user_preferences",
         request = { buildJsonObject { put("key", "appearance") } },
-        describe = { settings: AppearanceSettings -> buildJsonObject {
-            put("outcome", "SUCCESS")
-            put("mode", settings.mode.name)
-            put("color", settings.color.name)
-        } }
+        describe = ::appearanceResponse
     ) { appearance }
 
     override suspend fun saveThemeMode(mode: ThemeMode) = saveAppearance("theme_mode", mode.name) {
@@ -43,7 +42,7 @@ internal class DefaultUserPreferencesRepository(
         requestLogging.trace(
             origin = "LOCAL_PREFERENCES", operation = "WRITE", resource = "user_preferences",
             request = { buildJsonObject { put("key", key); put("value", value) } },
-            describe = { buildJsonObject { put("outcome", "SUCCESS") } },
+            describe = { LogResponse(LogOutcome.SUCCESS) },
             block = persist
         )
     }
@@ -70,10 +69,14 @@ internal class DefaultUserPreferencesRepository(
         }
     }
 
-    private fun sourceOrderResponse(sourceIds: List<String>) = buildJsonObject {
-        put("outcome", "SUCCESS")
+    private fun appearanceResponse(settings: AppearanceSettings) = LogResponse(LogOutcome.SUCCESS, buildJsonObject {
+        put("mode", settings.mode.name)
+        put("color", settings.color.name)
+    })
+
+    private fun sourceOrderResponse(sourceIds: List<String>) = LogResponse(LogOutcome.SUCCESS, buildJsonObject {
         put("key", "news_source_order")
         put("count", sourceIds.size)
         put("sourceIds", JsonArray(sourceIds.map(::JsonPrimitive)))
-    }
+    })
 }

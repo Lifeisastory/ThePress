@@ -2,7 +2,11 @@
 
 网络请求与来源适配模块，提供共享 OkHttp 客户端、Retrofit Service、协程结果封装，以及按来源配置选择的请求、提取和映射工具。
 
-应用默认在 `NewsRepository` 层通过统一 `Logger` 记录数据请求的开始/完成，明确标记 `NETWORK` 或 `LOCAL_DATABASE`，完成时输出解析后的文章 JSON。命中缓存时仍有数据库读取日志；来源加载失败继续提交 `source_failed`。如需单独排查 HTTP 子请求，可向 `NetworkClient` 传入 `logger`，启用 `RequestLoggingListener` 的底层生命周期日志；应用默认关闭这层额外输出。日志开关、级别、格式、脱敏和长响应分段由 `core:analytics` 管理，统一标签为 `ThePress`。详见 [统一日志](../analytics/README.md)。
+应用在 `NewsRepository` 层通过统一 `Logger` 记录数据请求的开始/完成，明确标记 `NETWORK` 或 `LOCAL_DATABASE`，完成时输出解析后的文章 JSON。命中缓存时仍有数据库读取日志；来源加载失败继续提交 `source_failed`。日志开关、级别、格式、脱敏和长响应分段由 `core:analytics` 管理，统一标签为 `ThePress`。详见 [统一日志](../analytics/README.md)。
+
+本模块返回 `NetworkError`，由 `core:data` 的 `NewsLogResponse.kt` 将来源加载失败转换为 `source_failed` 日志事件。网络模块不依赖 `core:analytics`，业务日志决策由调用方负责。
+
+`NetworkResult`、`NetworkError`、`ProcessingStage` 和 `HttpHeaders` 统一定义在 `core:model`，网络模块通过 `api(project(":core:model"))` 暴露这些契约。具体请求执行和异常捕获仍留在本模块。
 
 ## 按来源获取列表
 
@@ -11,7 +15,7 @@
 ```kotlin
 import com.aster.core.network.NetworkClient
 import com.aster.core.network.adapters.AdapterManager
-import com.aster.core.network.model.NetworkResult
+import com.aster.core.model.NetworkResult
 import com.aster.core.network.sources.BuiltInSources
 
 val networkClient = NetworkClient()
@@ -114,23 +118,20 @@ adapters/
 dto/                       网络传输数据，每个顶层类型独立文件
 ├── SourceItem.kt           归一化后的来源条目
 └── HttpPayload.kt          HTTP 响应数据
-model/                     配置、规则、结果与错误模型
+model/                     网络配置与规则
 ├── SourceDefinition.kt     来源定义
 ├── HttpMethod.kt           请求方法
 ├── HttpRequestSpec.kt      请求配置
 ├── ItemMapping.kt          条目映射规则
 ├── JsonFieldEquals.kt      字段匹配条件
-├── UrlMapping.kt           链接映射规则
-├── NetworkResult.kt        请求结果
-├── NetworkError.kt         错误信息
-└── ProcessingStage.kt      处理阶段
+└── UrlMapping.kt           链接映射规则
 sources/
 ├── BuiltInSources.kt       唯一公共注册出口和凭据注入
 ├── SourceDefaults.kt       定义构造的公共默认值
 └── *Sources.kt             每个平台的独立规则
 ```
 
-`network` 的 DTO 统一放在 `com.aster.core.network.dto`，包括当前的响应数据和统一来源条目，以及后续接口的请求体、响应体 DTO；配置、规则、结果封装和错误信息放在 `com.aster.core.network.model`。每个顶层类型独立成文件。请求执行、提取和映射逻辑放在 `adapters`；`JsonPath` 包含路径解析及读取逻辑，保留在 `adapters.mapping`。
+`network` 的 DTO 统一放在 `com.aster.core.network.dto`，包括当前的响应数据和统一来源条目，以及后续接口的请求体、响应体 DTO；配置、规则放在 `com.aster.core.network.model`，结果封装和错误信息放在共享的 `com.aster.core.model`。每个顶层类型独立成文件。请求执行、提取和映射逻辑放在 `adapters`；`JsonPath` 包含路径解析及读取逻辑，保留在 `adapters.mapping`。
 
 流程为 `来源 ID → SourceDefinition → prepareRequest → SourceRequestStrategy → ContentExtractor → transform → JsonItemMapper → SourceItem`。动态请求复用 `NetworkClient.httpClient`，不需要为每个平台创建 Retrofit Service；已有 Service API 仍可独立使用。
 
@@ -232,7 +233,7 @@ val articleApi = networkClient.createService<ArticleApi>("https://example.com/ap
 ## 执行请求
 
 ```kotlin
-import com.aster.core.network.model.NetworkResult
+import com.aster.core.model.NetworkResult
 import com.aster.core.network.networkRequest
 
 suspend fun loadArticles() {
@@ -257,6 +258,8 @@ suspend fun loadArticles() {
 | `NetworkError.Timeout` | 调用或读写超时产生的 `InterruptedIOException` |
 | `NetworkError.Connection` | 其他 I/O 错误，如 DNS、连接或 TLS 失败 |
 | `NetworkError.Serialization` | JSON 序列化或反序列化失败 |
+
+HTTP 错误响应头转换为共享的 `HttpHeaders`，保留重复头字段和原始顺序；单值查询 `headers["Retry-After"]` 仍不区分大小写，多值查询使用 `headers.values(name)`。原始错误正文与异常对象继续保留，日志由数据层按需提取非敏感信息。
 
 协程取消会传播并取消底层请求；程序错误继续抛出。请求 block 仅放请求及必要的响应转换，业务处理放在结果之后。
 

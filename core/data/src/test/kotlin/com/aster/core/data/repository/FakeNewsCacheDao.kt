@@ -2,7 +2,7 @@ package com.aster.core.data.repository
 
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.NewsCache
-import com.aster.core.localdb.dto.NewsCacheDao
+import com.aster.core.localdb.dao.NewsCacheDao
 import com.aster.core.localdb.dto.NewsCacheSize
 import com.aster.core.localdb.entity.NewsCacheEntity
 import kotlinx.coroutines.flow.MutableStateFlow
