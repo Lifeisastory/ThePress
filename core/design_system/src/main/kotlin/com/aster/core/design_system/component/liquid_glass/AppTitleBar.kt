@@ -19,7 +19,7 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.shapes.Capsule
 
-/** 与首页 Tab 栏使用相同高度和玻璃效果的静态标题胶囊 */
+/** 与推荐页 Tab 栏使用相同高度和玻璃效果的静态标题胶囊 */
 @Composable
 fun AppTitleBar(
     title: String,

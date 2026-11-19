@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** 独立搜索页只订阅全部来源的本地查询，不接收首页来源，也不触发数据抓取。 */
+/** 独立搜索页只订阅全部来源的本地查询，不接收推荐页来源，也不触发数据抓取。 */
 internal class SearchViewModel(
     sources: List<NewsSource>,
     private val search: (String) -> Flow<List<NewsArticle>>

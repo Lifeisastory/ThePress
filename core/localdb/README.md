@@ -14,7 +14,7 @@
 
 当前 schema 版本为 2，使用 Room 自动迁移从版本 1 添加可空的 `imageUrl`，保留已有缓存。导出的 Room schema 位于 `schemas/com.aster.core.localdb.AppDataBase/`，入口类改名不改变表结构和版本。
 
-`NewsCacheDao.observeArticles` 持续发出完整文章快照。`NewsRepository.observeNews` 将其映射为共享模型，首页订阅该流恢复内容，并持续响应数据库变化；观察本身不联网，也不受十分钟有效期限制。独立的 `refresh` 只返回完成状态，手动刷新仍遵守相同有效期。
+`NewsCacheDao.observeArticles` 持续发出完整文章快照。`NewsRepository.observeNews` 将其映射为共享模型，推荐页订阅该流恢复内容，并持续响应数据库变化；观察本身不联网，也不受十分钟有效期限制。独立的 `refresh` 只返回完成状态，手动刷新仍遵守相同有效期。
 
 `NewsCacheDao.search` 返回 Room Flow，按来源（可选）、标题和摘要查询当前快照。仓库转义 LIKE 通配符并提供本地搜索，不触发网络请求，缓存写入后结果自动更新。搜索包含仍存于数据库的过期快照，但不保存被新榜单替换的历史内容。
 

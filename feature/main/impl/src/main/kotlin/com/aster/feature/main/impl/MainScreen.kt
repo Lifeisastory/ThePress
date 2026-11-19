@@ -38,11 +38,11 @@ import com.aster.core.design_system.component.navigationBarHeight
 import com.aster.core.design_system.component.statusBarHeight
 import com.aster.core.design_system.component.liquid_glass.AppNavigationBar
 import com.aster.core.design_system.component.liquid_glass.AppNavigationItem
-import com.aster.feature.home.impl.HomePage
-import com.aster.feature.home.impl.SourceOrderDialog
-import com.aster.feature.home.impl.SourceOrderEditor
+import com.aster.feature.for_you.impl.ForYouPage
+import com.aster.feature.for_you.impl.SourceOrderDialog
+import com.aster.feature.for_you.impl.SourceOrderEditor
 import com.aster.feature.me.impl.ProfilePage
-import com.aster.feature.saved.impl.DigestPage
+import com.aster.feature.digest.impl.DigestPage
 import com.aster.core.data.repository.NewsDigestRepository
 import com.aster.core.data.repository.DigestSettingsRepository
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -59,8 +59,8 @@ internal fun MainScreen(
     isActive: Boolean,
     modifier: Modifier = Modifier
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
-    var homeScrollToTop by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var selectedTab by rememberSaveable { mutableStateOf(MainTab.ForYou) }
+    var forYouScrollToTop by remember { mutableStateOf<(() -> Unit)?>(null) }
     var sourceOrderEditor by remember { mutableStateOf<SourceOrderEditor?>(null) }
     val savedPages = rememberSaveableStateHolder()
     val items = MainTab.entries.map { AppNavigationItem(stringResource(it.labelRes), it.icon) }
@@ -87,8 +87,8 @@ internal fun MainScreen(
     )
 
     // 路由转场时 Main 可能仍在组合中，只有当前路由可以处理 Tab 返回
-    BackHandler(enabled = isActive && selectedTab != MainTab.Home) {
-        selectedTab = MainTab.Home
+    BackHandler(enabled = isActive && selectedTab != MainTab.ForYou) {
+        selectedTab = MainTab.ForYou
     }
 
     SystemInsets(
@@ -107,16 +107,16 @@ internal fun MainScreen(
         ) {
             savedPages.SaveableStateProvider(selectedTab) {
                 when (selectedTab) {
-                    MainTab.Home -> HomePage(
+                    MainTab.ForYou -> ForYouPage(
                         repository = repository,
                         preferencesRepository = preferencesRepository,
                         contentPadding = contentPadding,
                         onOpenSearch = onOpenSearch,
                         onOpenArticle = onOpenArticle,
-                        onScrollToTopChanged = { homeScrollToTop = it },
+                        onScrollToTopChanged = { forYouScrollToTop = it },
                         onEditSourceOrder = { sourceOrderEditor = it }
                     )
-                    MainTab.Saved -> DigestPage(contentPadding, digestRepository, digestSettingsRepository,
+                    MainTab.Digest -> DigestPage(contentPadding, digestRepository, digestSettingsRepository,
                         onOpenArticle, onOpenSettings = { selectedTab = MainTab.Profile })
                     MainTab.Profile -> ProfilePage(
                         contentPadding = contentPadding,
@@ -133,8 +133,8 @@ internal fun MainScreen(
             selectedIndex = MainTab.entries.indexOf(selectedTab),
             onItemSelected = { selectedTab = MainTab.entries[it] },
             backdrop = backdrop,
-            showScrollToTop = selectedTab == MainTab.Home && homeScrollToTop != null,
-            onScrollToTop = { homeScrollToTop?.invoke() },
+            showScrollToTop = selectedTab == MainTab.ForYou && forYouScrollToTop != null,
+            onScrollToTop = { forYouScrollToTop?.invoke() },
             modifier = Modifier
                 .then(if (sourceOrderEditor != null) Modifier.clearAndSetSemantics {} else Modifier)
                 .align(Alignment.BottomCenter)

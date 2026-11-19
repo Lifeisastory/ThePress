@@ -10,9 +10,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.aster.feature.home.api.R as HomeApiR
+import com.aster.feature.for_you.api.R as ForYouApiR
 import com.aster.feature.me.api.R as MeApiR
-import com.aster.feature.saved.api.R as SavedApiR
+import com.aster.feature.digest.api.R as DigestApiR
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -24,12 +24,12 @@ class LiquidGlassNavigationDemoTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     private fun tabLabels() = listOf(
-        HomeApiR.string.feature_home_title,
-        SavedApiR.string.feature_saved_title,
+        ForYouApiR.string.feature_for_you_title,
+        DigestApiR.string.feature_digest_title,
         MeApiR.string.feature_me_title
     ).map { composeRule.activity.getString(it) }
 
-    private val pageTags = listOf("home_page", "saved_page", "profile_page")
+    private val pageTags = listOf("for_you_page", "digest_page", "profile_page")
 
     @Test
     fun tabsSwitchContentAndSelectionSurvivesActivityRecreation() {
@@ -196,7 +196,7 @@ class LiquidGlassNavigationDemoTest {
 
     @Test
     fun cancelledDragRestoresSelectionAndIndicator() {
-        val homeLabel = composeRule.activity.getString(HomeApiR.string.feature_home_title)
+        val forYouLabel = composeRule.activity.getString(ForYouApiR.string.feature_for_you_title)
         val tabs = composeRule.onNodeWithTag("liquid_glass_navigation_tabs")
         val indicator = composeRule.onNodeWithTag("liquid_glass_navigation_indicator")
         val startX = indicator.fetchSemanticsNode().boundsInRoot.center.x
@@ -207,14 +207,14 @@ class LiquidGlassNavigationDemoTest {
             cancel()
         }
 
-        composeRule.onNode(hasText(homeLabel) and hasClickAction()).assertIsSelected()
+        composeRule.onNode(hasText(forYouLabel) and hasClickAction()).assertIsSelected()
         val restoredX = indicator.fetchSemanticsNode().boundsInRoot.center.x
         assertTrue("Cancelled drag must return to the selected tab", kotlin.math.abs(restoredX - startX) < 1f)
     }
 
     @Test
     fun draggingPastEdgesClampsToFirstAndLastTab() {
-        val homeLabel = composeRule.activity.getString(HomeApiR.string.feature_home_title)
+        val forYouLabel = composeRule.activity.getString(ForYouApiR.string.feature_for_you_title)
         val meLabel = composeRule.activity.getString(MeApiR.string.feature_me_title)
         val tabs = composeRule.onNodeWithTag("liquid_glass_navigation_tabs")
 
@@ -229,36 +229,36 @@ class LiquidGlassNavigationDemoTest {
             moveTo(Offset(-100f, centerY))
             up()
         }
-        composeRule.onNode(hasText(homeLabel) and hasClickAction()).assertIsSelected()
+        composeRule.onNode(hasText(forYouLabel) and hasClickAction()).assertIsSelected()
     }
 
     @Test
     fun placeholderRemainsAboveFloatingNavigation() {
-        val savedLabel = composeRule.activity.getString(SavedApiR.string.feature_saved_title)
-        composeRule.onNode(hasText(savedLabel) and hasClickAction()).performClick()
-        composeRule.onNodeWithTag("saved_page").assertIsDisplayed()
+        val digestLabel = composeRule.activity.getString(DigestApiR.string.feature_digest_title)
+        composeRule.onNode(hasText(digestLabel) and hasClickAction()).performClick()
+        composeRule.onNodeWithTag("digest_page").assertIsDisplayed()
         val title = composeRule.onNodeWithTag("page_title").assertIsDisplayed()
-        val savedTab = composeRule.onNode(hasText(savedLabel) and hasClickAction())
+        val digestTab = composeRule.onNode(hasText(digestLabel) and hasClickAction())
             .assertIsDisplayed()
             .assertIsSelected()
 
         assertTrue(
             "The floating navigation must not cover the placeholder",
             title.fetchSemanticsNode().boundsInRoot.bottom <=
-                savedTab.fetchSemanticsNode().boundsInRoot.top
+                digestTab.fetchSemanticsNode().boundsInRoot.top
         )
     }
 
     @Test
-    fun backFromAnotherTabReturnsDirectlyToHome() {
+    fun backFromAnotherTabReturnsDirectlyToForYou() {
         val labels = tabLabels()
         composeRule.onNode(hasText(labels[1]) and hasClickAction()).performClick()
-        composeRule.onNodeWithTag("saved_page").assertIsDisplayed()
+        composeRule.onNodeWithTag("digest_page").assertIsDisplayed()
         composeRule.onNode(hasText(labels[2]) and hasClickAction()).performClick()
         composeRule.onNodeWithTag("profile_page").assertIsDisplayed()
 
         composeRule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
-        composeRule.onNodeWithTag("home_page").assertIsDisplayed()
+        composeRule.onNodeWithTag("for_you_page").assertIsDisplayed()
         composeRule.onNode(hasText(labels[0]) and hasClickAction()).assertIsSelected()
     }
 }

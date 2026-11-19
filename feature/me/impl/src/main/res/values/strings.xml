@@ -21,7 +21,7 @@
     <string name="profile_cache_size">约 %1$s · %2$d 条</string>
     <string name="profile_cache_hint">统计已缓存的标题、摘要和链接等文本内容，不包含数据库额外占用、图片及网页缓存。</string>
     <string name="profile_clear_cache">清除资讯缓存</string>
-    <string name="profile_cache_confirm">清除后首页和搜索中的本地资讯将被移除，再次刷新可重新获取。主题设置和来源排序会保留。</string>
+    <string name="profile_cache_confirm">清除后推荐页和搜索中的本地资讯将被移除，再次刷新可重新获取。主题设置和来源排序会保留。</string>
     <string name="profile_cancel">取消</string>
     <string name="profile_confirm_clear">确认清除</string>
     <string name="profile_clearing">正在清除，请稍候…</string>

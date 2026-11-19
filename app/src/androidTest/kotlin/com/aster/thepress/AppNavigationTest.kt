@@ -54,9 +54,9 @@ import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
-import com.aster.feature.home.api.R as HomeR
+import com.aster.feature.for_you.api.R as ForYouR
 import com.aster.feature.me.api.R as MeR
-import com.aster.feature.saved.api.R as SavedR
+import com.aster.feature.digest.api.R as DigestR
 
 class AppNavigationTest {
     @get:Rule
@@ -115,13 +115,13 @@ class AppNavigationTest {
     }
 
     private fun onBaiduPage(tag: String) = compose.onNode(
-        hasTestTag(tag) and hasAnyAncestor(hasTestTag("home_source_page_baidu"))
+        hasTestTag(tag) and hasAnyAncestor(hasTestTag("for_you_source_page_baidu"))
     )
 
     @Test
     fun digestSettingsGenerationAndCitationUseExistingWebViewNavigation() {
         render()
-        selectTab(SavedR.string.feature_saved_title)
+        selectTab(DigestR.string.feature_digest_title)
         compose.onNodeWithTag("digest_generate").assertIsNotEnabled()
         compose.onNodeWithTag("digest_open_settings").performClick()
         scrollToProfileSetting("digest_api_key")
@@ -138,9 +138,9 @@ class AppNavigationTest {
             assertEquals(setOf("baidu"), digestSettings.settings.value.sourceIds)
             assertEquals(0, generations)
         }
-        selectTab(SavedR.string.feature_saved_title)
+        selectTab(DigestR.string.feature_digest_title)
         compose.onNodeWithTag("digest_generate").performClick()
-        compose.onNodeWithTag("saved_page").performScrollToNode(hasTestTag("digest_link_n1"))
+        compose.onNodeWithTag("digest_page").performScrollToNode(hasTestTag("digest_link_n1"))
         compose.onNodeWithTag("digest_link_n1").performClick()
         compose.onNodeWithTag("webview_screen").assertIsDisplayed()
         compose.runOnIdle {
@@ -152,16 +152,16 @@ class AppNavigationTest {
     }
 
     @Test
-    fun tabSwitchesStayInsideMainAndBackReturnsDirectlyToHome() {
+    fun tabSwitchesStayInsideMainAndBackReturnsDirectlyToForYou() {
         render()
-        selectTab(SavedR.string.feature_saved_title)
+        selectTab(DigestR.string.feature_digest_title)
         selectTab(MeR.string.feature_me_title)
         compose.runOnIdle {
             assertEquals(listOf(MainNavKey), appState.navigationState.backStack.toList())
             backDispatcher.onBackPressed()
         }
-        compose.onNodeWithTag("home_page").assertIsDisplayed()
-        tab(HomeR.string.feature_home_title).assertIsSelected()
+        compose.onNodeWithTag("for_you_page").assertIsDisplayed()
+        tab(ForYouR.string.feature_for_you_title).assertIsSelected()
     }
 
     // 列表视口延伸到悬浮导航栏后方，点击前将控件滚动到可交互区域
@@ -176,20 +176,20 @@ class AppNavigationTest {
     }
 
     @Test
-    fun homeSourceAndScrollPositionSurviveTabSwitchAndSearch() {
+    fun forYouSourceAndScrollPositionSurviveTabSwitchAndSearch() {
         render()
-        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
+        compose.onNodeWithTag("for_you_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
         compose.onNodeWithTag("glass_tab_baidu").performClick()
-        onBaiduPage("home_feed").performScrollToIndex(15)
-        onBaiduPage("home_article_baidu_15").assertIsDisplayed()
+        onBaiduPage("for_you_feed").performScrollToIndex(15)
+        onBaiduPage("for_you_article_baidu_15").assertIsDisplayed()
         val initialReads = repository.observations
 
-        selectTab(SavedR.string.feature_saved_title)
-        selectTab(HomeR.string.feature_home_title)
+        selectTab(DigestR.string.feature_digest_title)
+        selectTab(ForYouR.string.feature_for_you_title)
         compose.onNodeWithTag("glass_tab_baidu").assertIsSelected()
-        onBaiduPage("home_article_baidu_15").assertIsDisplayed()
+        onBaiduPage("for_you_article_baidu_15").assertIsDisplayed()
 
-        compose.onNodeWithTag("home_search_button").performClick()
+        compose.onNodeWithTag("for_you_search_button").performClick()
         compose.onNodeWithTag("search_screen").assertIsDisplayed()
         compose.onNodeWithTag("main_screen").assertDoesNotExist()
         compose.onNodeWithTag("liquid_glass_navigation_tabs").assertDoesNotExist()
@@ -198,7 +198,7 @@ class AppNavigationTest {
         }
         compose.onNodeWithTag("search_back").performClick()
         compose.onNodeWithTag("glass_tab_baidu").assertIsSelected()
-        onBaiduPage("home_article_baidu_15").assertIsDisplayed()
+        onBaiduPage("for_you_article_baidu_15").assertIsDisplayed()
         compose.runOnIdle { assertEquals(initialReads, repository.observations) }
     }
 
@@ -217,16 +217,16 @@ class AppNavigationTest {
         compose.onNodeWithTag("profile_page").assertIsDisplayed()
         tab(MeR.string.feature_me_title).assertIsSelected()
         compose.runOnIdle { backDispatcher.onBackPressed() }
-        compose.onNodeWithTag("home_page").assertIsDisplayed()
+        compose.onNodeWithTag("for_you_page").assertIsDisplayed()
     }
 
     @Test
-    fun articleOpensInWebViewAndClosingRestoresHomePosition() {
+    fun articleOpensInWebViewAndClosingRestoresForYouPosition() {
         val restoration = render()
-        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
+        compose.onNodeWithTag("for_you_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
         compose.onNodeWithTag("glass_tab_baidu").performClick()
-        onBaiduPage("home_feed").performScrollToIndex(15)
-        onBaiduPage("home_article_baidu_15").performClick()
+        onBaiduPage("for_you_feed").performScrollToIndex(15)
+        onBaiduPage("for_you_article_baidu_15").performClick()
 
         compose.onNodeWithTag("webview_screen").assertIsDisplayed()
         compose.onNodeWithTag("liquid_glass_navigation_tabs").assertDoesNotExist()
@@ -240,13 +240,13 @@ class AppNavigationTest {
         compose.onNodeWithTag("webview_screen").assertIsDisplayed()
         compose.onNodeWithTag("webview_close").performClick()
         compose.onNodeWithTag("glass_tab_baidu").assertIsSelected()
-        onBaiduPage("home_article_baidu_15").assertIsDisplayed()
+        onBaiduPage("for_you_article_baidu_15").assertIsDisplayed()
     }
 
     @Test
     fun searchArticleOpensInWebViewAndBackRestoresResults() {
         render()
-        compose.onNodeWithTag("home_search_button").performClick()
+        compose.onNodeWithTag("for_you_search_button").performClick()
         compose.onNodeWithTag("search_input").performTextInput("测试")
         compose.waitUntil(5_000) {
             compose.onAllNodesWithTag("search_article_baidu_search").fetchSemanticsNodes().isNotEmpty()
@@ -267,10 +267,10 @@ class AppNavigationTest {
     @Test
     fun scrollToTopAppearsAfterOneViewportAndReturnsCurrentSourceToTop() {
         render()
-        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
+        compose.onNodeWithTag("for_you_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
         compose.onNodeWithTag("glass_tab_baidu").performClick()
         val button = compose.onNodeWithTag("liquid_glass_scroll_to_top")
-        val feed = onBaiduPage("home_feed")
+        val feed = onBaiduPage("for_you_feed")
         val viewportHeight = feed.fetchSemanticsNode().boundsInRoot.height
         button.assertDoesNotExist()
 
@@ -280,34 +280,34 @@ class AppNavigationTest {
         button.assertIsDisplayed().performClick()
 
         button.assertDoesNotExist()
-        onBaiduPage("home_article_baidu_0").assertIsDisplayed()
+        onBaiduPage("for_you_article_baidu_0").assertIsDisplayed()
         compose.onNodeWithTag("glass_tab_baidu").assertIsSelected()
     }
 
     @Test
     fun scrollToTopFollowsActiveSourceAndRestoredPosition() {
         val restoration = render()
-        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
+        compose.onNodeWithTag("for_you_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
         compose.onNodeWithTag("glass_tab_baidu").performClick()
-        onBaiduPage("home_feed").performScrollToIndex(15)
+        onBaiduPage("for_you_feed").performScrollToIndex(15)
         val button = compose.onNodeWithTag("liquid_glass_scroll_to_top")
         button.assertIsDisplayed()
 
-        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_all"))
+        compose.onNodeWithTag("for_you_source_tabs").performScrollToNode(hasTestTag("glass_tab_all"))
         compose.onNodeWithTag("glass_tab_all").performClick()
         button.assertDoesNotExist()
-        compose.onNodeWithTag("home_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
+        compose.onNodeWithTag("for_you_source_tabs").performScrollToNode(hasTestTag("glass_tab_baidu"))
         compose.onNodeWithTag("glass_tab_baidu").performClick()
         button.assertIsDisplayed()
 
-        selectTab(SavedR.string.feature_saved_title)
+        selectTab(DigestR.string.feature_digest_title)
         button.assertDoesNotExist()
-        selectTab(HomeR.string.feature_home_title)
+        selectTab(ForYouR.string.feature_for_you_title)
         button.assertIsDisplayed()
         restoration.emulateSavedInstanceStateRestore()
         button.assertIsDisplayed().performClick()
         button.assertDoesNotExist()
-        onBaiduPage("home_article_baidu_0").assertIsDisplayed()
+        onBaiduPage("for_you_article_baidu_0").assertIsDisplayed()
     }
 
     /** 使用 data 的公开接口模拟列表，不依赖真实资讯接口和数据库；网页内容不参与断言 */
