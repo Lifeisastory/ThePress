@@ -6,8 +6,8 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.aster.core.data.repository.NewsRepository
 import com.aster.core.data.repository.UserPreferencesRepository
-import com.aster.core.data.repository.NewsDigestRepository
 import com.aster.core.data.repository.DigestSettingsRepository
+import com.aster.core.data.repository.DigestAgentRepository
 import com.aster.core.navigation.toEntries
 import com.aster.feature.main.api.navigation.MainNavKey
 import com.aster.feature.main.impl.navigation.mainEntry
@@ -22,16 +22,16 @@ internal fun AppNavHost(
     appState: AppState,
     repository: NewsRepository,
     preferencesRepository: UserPreferencesRepository,
-    digestRepository: NewsDigestRepository,
     digestSettingsRepository: DigestSettingsRepository,
+    digestAgentRepository: DigestAgentRepository,
     modifier: Modifier = Modifier
 ) {
     val provider = entryProvider {
         mainEntry(
             repository = repository,
             preferencesRepository = preferencesRepository,
-            digestRepository = digestRepository,
             digestSettingsRepository = digestSettingsRepository,
+            digestAgentRepository = digestAgentRepository,
             onOpenSearch = { appState.navigator.navigate(SearchNavKey) },
             onOpenArticle = { appState.navigator.navigate(WebViewNavKey(it)) },
             isActive = { appState.navigationState.currentKey == MainNavKey }

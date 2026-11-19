@@ -17,6 +17,9 @@ android {
 }
 
 dependencies {
+    implementation(libs.markwon.core)
+    implementation(libs.markwon.tables)
+    implementation(libs.markwon.strikethrough)
     api(project(":core:model"))
     // Backdrop is part of the navigation bar's public API
     api(libs.kyant.backdrop)

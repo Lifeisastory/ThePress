@@ -1,6 +1,4 @@
 <resources>
-    <string name="profile_digest">简报</string>
-    <string name="profile_digest_saved">简报设置已保存</string>
     <string name="profile_subtitle">让阅读更合你的习惯</string>
     <string name="profile_appearance">外观设置</string>
     <string name="profile_theme">显示主题</string>

@@ -1,5 +1,15 @@
 # 应用数据入口
 
+`AppData.digestAgentRepository` 装配资讯助手，`DefaultDigestAgentRepository` 负责配置与凭据读取、多会话存储、历史列表和运行失败映射，feature 只调用仓库接口
+
+会话标题从首次提问提取，列表按更新时间倒序排列，读取指定会话不触发模型调用；新建会话先展示空白页面，首次发送时写入新记录，重启后默认恢复最近更新的会话
+
+`NewsAgentTools` 在每轮内部固定所选来源的资料快照，`search_news` 按需刷新并分页检索，`read_news` 仅读取缓存标题与摘要，不声称抓取网页全文；来源刷新失败时返回缓存并标注失败来源
+
+会话开始与结束时保存，显式停止会保存已收到的内容；进程中途退出后恢复为已停止，不自动续跑或请求模型，未落盘的流式片段不保证恢复
+
+模型只接收最近十组完整问答，失败和取消的问答不进入下一轮上下文；旧的结构化简报继续由 `NewsDigestRepository` 管理
+
 Application 持有一个 `AppData`。容器内部创建并复用 `AppDataBase`、`AppSharedPreferences` 和网络客户端，只向外暴露仓库接口。app、feature 不直接调用存储类、DAO 或网络客户端。
 
 模块内按职责划分包：

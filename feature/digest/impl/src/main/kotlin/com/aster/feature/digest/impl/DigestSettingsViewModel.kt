@@ -1,4 +1,4 @@
-package com.aster.feature.me.impl
+package com.aster.feature.digest.impl
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -35,9 +35,9 @@ internal class DigestSettingsViewModel(private val repository: DigestSettingsRep
         viewModelScope.launch {
             try {
                 repository.save(settings, apiKey)
-                state.update { it.copy(savedRevision = it.savedRevision + 1, message = R.string.profile_digest_saved) }
+                state.update { it.copy(savedRevision = it.savedRevision + 1, message = R.string.agent_settings_saved) }
             } catch (error: CancellationException) { throw error
-            } catch (_: Exception) { state.update { it.copy(message = R.string.profile_save_failed) }
+            } catch (_: Exception) { state.update { it.copy(message = R.string.agent_settings_save_failed) }
             } finally { state.update { it.copy(saving = false) } }
         }
     }

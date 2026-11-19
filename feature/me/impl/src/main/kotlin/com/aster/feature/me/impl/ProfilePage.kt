@@ -46,16 +46,13 @@ import com.aster.core.data.repository.UserPreferencesRepository
 import com.aster.core.design_system.component.AppLoadingIndicator
 import com.aster.core.model.ThemeColor
 import com.aster.core.model.ThemeMode
-import com.aster.core.data.repository.DigestSettingsRepository
 import com.aster.core.design_system.component.AppSettingsGroup as SettingsGroup
-import com.aster.core.ui.DigestSettingsContent
 
 @Composable
 fun ProfilePage(
     contentPadding: PaddingValues,
     repository: NewsRepository,
     preferencesRepository: UserPreferencesRepository,
-    digestSettingsRepository: DigestSettingsRepository,
     onOpenLink: (String) -> Unit
 ) {
     val factory = remember(repository, preferencesRepository) {
@@ -63,9 +60,6 @@ fun ProfilePage(
     }
     val viewModel: ProfileViewModel = viewModel(factory = factory)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val digestFactory = remember(digestSettingsRepository) { DigestSettingsViewModel.factory(digestSettingsRepository) }
-    val digestViewModel: DigestSettingsViewModel = viewModel(factory = digestFactory)
-    val digestState by digestViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var confirmClear by rememberSaveable { mutableStateOf(false) }
@@ -136,17 +130,6 @@ fun ProfilePage(
                     if (state.appearanceReadFailed) {
                         Text(stringResource(R.string.profile_preferences_read_failed), color = MaterialTheme.colorScheme.error)
                     }
-                }
-            }
-            item {
-                SettingsGroup(stringResource(R.string.profile_digest)) {
-                    when {
-                        digestState.readFailed -> Text(stringResource(R.string.profile_preferences_read_failed), color = MaterialTheme.colorScheme.error)
-                        digestState.settings == null -> AppLoadingIndicator()
-                        else -> DigestSettingsContent(digestState.settings!!, repository.sources,
-                            digestState.saving, digestState.savedRevision, digestViewModel::save)
-                    }
-                    digestState.message?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall) }
                 }
             }
             item {

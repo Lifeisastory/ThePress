@@ -1,0 +1,27 @@
+<resources>
+    <string name="agent_history_title">聊天记录</string>
+    <string name="agent_history_new">新对话</string>
+    <string name="agent_history_read_failed">记录暂时无法读取</string>
+    <string name="agent_settings_title">助手设置</string>
+    <string name="agent_close">关闭</string>
+    <string name="agent_settings_read_failed">设置读取失败，请稍后再试</string>
+    <string name="agent_steps_summary">工具与技能 · %1$d 项</string>
+    <string name="agent_step_input">调用参数</string>
+    <string name="agent_step_output">执行结果</string>
+    <string name="agent_history_empty">还没有聊天记录</string>
+    <string name="agent_history_legacy">历史对话</string>
+    <string name="agent_history_count">%1$d 条消息</string>
+    <string name="agent_working">正在整理回答…</string>
+    <string name="agent_cancelled">已停止，保留已收到的内容</string>
+    <string name="agent_failed">本次回答未完成，可以重试</string>
+    <string name="agent_step_running">进行中 · 点击展开</string>
+    <string name="agent_step_completed">已完成 · 点击展开</string>
+    <string name="agent_step_failed">未完成 · 点击展开</string>
+    <string name="agent_step_cancelled">已停止</string>
+    <string name="agent_sources">查看本次查阅的 %1$d 条来源</string>
+    <string name="agent_welcome">从资讯中，找到你关心的答案</string>
+    <string name="agent_welcome_detail">整理每日简报、追踪主题、比较报道\n基于你选择的来源，边查阅边回答</string>
+    <string name="agent_prompt_briefing">帮我整理一份今日简报</string>
+    <string name="agent_prompt_technology">今天有哪些值得关注的科技资讯？</string>
+    <string name="agent_prompt_compare">帮我比较不同来源对热点事件的报道</string>
+</resources>

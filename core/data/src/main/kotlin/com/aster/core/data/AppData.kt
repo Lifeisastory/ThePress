@@ -15,6 +15,11 @@ import com.aster.core.data.repository.DigestSettingsRepository
 import com.aster.core.data.repository.DefaultDigestSettingsRepository
 import com.aster.core.data.repository.NewsDigestRepository
 import com.aster.core.data.repository.DefaultNewsDigestRepository
+import com.aster.core.data.repository.DigestAgentRepository
+import com.aster.core.data.repository.DefaultDigestAgentRepository
+import com.aster.core.agent.DeepSeekAgentClient
+import com.aster.core.agent.runtime.StreamingAgent
+import com.aster.core.agent.skills.AssetAgentSkillStore
 
 /** 由 Application 持有一个实例，统一管理数据依赖；只向外暴露仓库 */
 class AppData(context: Context, private val logger: Logger = NoOpLogger) {
@@ -30,6 +35,12 @@ class AppData(context: Context, private val logger: Logger = NoOpLogger) {
     val newsDigestRepository: NewsDigestRepository by lazy {
         DefaultNewsDigestRepository(newsRepository, digestSettingsRepository, preferences.digestApiKey,
             database.newsDigestDao(), DeepSeekClient(), logger)
+    }
+
+    val digestAgentRepository: DigestAgentRepository by lazy {
+        DefaultDigestAgentRepository(newsRepository, digestSettingsRepository, preferences.digestApiKey,
+            database.agentConversationDao(),
+            StreamingAgent(DeepSeekAgentClient(), AssetAgentSkillStore(appContext.assets), logger), logger)
     }
 
     val newsRepository: NewsRepository by lazy {

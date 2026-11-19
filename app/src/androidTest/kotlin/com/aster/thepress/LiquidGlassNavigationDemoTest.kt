@@ -233,18 +233,18 @@ class LiquidGlassNavigationDemoTest {
     }
 
     @Test
-    fun placeholderRemainsAboveFloatingNavigation() {
+    fun historyControlRemainsAboveFloatingNavigation() {
         val digestLabel = composeRule.activity.getString(DigestApiR.string.feature_digest_title)
         composeRule.onNode(hasText(digestLabel) and hasClickAction()).performClick()
         composeRule.onNodeWithTag("digest_page").assertIsDisplayed()
-        val title = composeRule.onNodeWithTag("page_title").assertIsDisplayed()
+        val history = composeRule.onNodeWithTag("digest_history").assertIsDisplayed()
         val digestTab = composeRule.onNode(hasText(digestLabel) and hasClickAction())
             .assertIsDisplayed()
             .assertIsSelected()
 
         assertTrue(
-            "The floating navigation must not cover the placeholder",
-            title.fetchSemanticsNode().boundsInRoot.bottom <=
+            "The floating navigation must not cover the history control",
+            history.fetchSemanticsNode().boundsInRoot.bottom <=
                 digestTab.fetchSemanticsNode().boundsInRoot.top
         )
     }

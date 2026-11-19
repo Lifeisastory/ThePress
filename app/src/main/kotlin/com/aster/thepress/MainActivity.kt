@@ -45,7 +45,8 @@ class MainActivity : ComponentActivity() {
             }
             AppTheme(darkTheme = darkTheme, themeColor = settings.color) {
                 App(repository = data.newsRepository, preferencesRepository = data.userPreferencesRepository,
-                    digestRepository = data.newsDigestRepository, digestSettingsRepository = data.digestSettingsRepository)
+                    digestSettingsRepository = data.digestSettingsRepository,
+                    digestAgentRepository = data.digestAgentRepository)
             }
         }
     }

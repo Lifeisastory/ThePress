@@ -11,6 +11,7 @@ import com.aster.core.localdb.dao.NewsCacheDao
 import com.aster.core.localdb.entity.CachedNewsArticleEntity
 import com.aster.core.localdb.entity.CachedStockInfo
 import com.aster.core.localdb.entity.NewsDigestEntity
+import com.aster.core.localdb.entity.AgentConversationEntity
 import com.aster.core.localdb.entity.NewsCache
 import com.aster.core.localdb.entity.NewsCacheEntity
 import kotlinx.coroutines.runBlocking
@@ -60,6 +61,53 @@ class AppDataBaseTest {
             )
         }
     )
+
+    @Test
+    fun migratesVersionFiveKeepingOldChatAndStoresIndependentHistory() = runBlocking {
+        val name = "agent-history-migration-test.db"
+        migrations.createDatabase(name, 5).apply {
+            execSQL("INSERT INTO agent_conversation (id, payload) VALUES (1, '[{\"text\":\"legacy\"}]')")
+            close()
+        }
+        migrations.runMigrationsAndValidate(name, 6, true).close()
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        try {
+            val db = Room.databaseBuilder(context, AppDataBase::class.java, name).build()
+            try {
+                val conversations = db.agentConversationDao()
+                assertEquals("[{\"text\":\"legacy\"}]", conversations.read(1)!!.payload)
+                assertEquals(0L, conversations.read(1)!!.updatedAt)
+                val second = conversations.saveNew("[{}]", "second", 20, 2)
+                val third = conversations.saveNew("[{\"text\":\"third\"}]", "third", 30, 2)
+                assertEquals(listOf(third, second, 1L), conversations.observeSummaries().first().map { it.id })
+                assertEquals(third, conversations.readLatest()!!.id)
+                assertEquals("[{}]", conversations.read(second)!!.payload)
+            } finally { db.close() }
+        } finally { context.deleteDatabase(name) }
+    }
+
+    @Test
+    fun migratesVersionFourAndPersistsConversationWithoutDeletingDigest() = runBlocking {
+        val name = "agent-conversation-migration-test.db"
+        migrations.createDatabase(name, 4).apply {
+            execSQL("INSERT INTO news_digest (id, payload) VALUES (1, 'old-digest')")
+            close()
+        }
+        migrations.runMigrationsAndValidate(name, 5, true).close()
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val saved = AgentConversationEntity(payload = "[{\"text\":\"hello\"}]")
+        try {
+            val db = Room.databaseBuilder(context, AppDataBase::class.java, name).build()
+            try {
+                assertEquals("old-digest", db.newsDigestDao().observeLatest().first()!!.payload)
+                db.agentConversationDao().save(saved)
+                db.newsCacheDao().clearCache()
+                assertEquals(saved, db.agentConversationDao().read())
+            } finally { db.close() }
+            val reopened = Room.databaseBuilder(context, AppDataBase::class.java, name).build()
+            try { assertEquals(saved, reopened.agentConversationDao().read()) } finally { reopened.close() }
+        } finally { context.deleteDatabase(name) }
+    }
 
     @Test
     fun searchesChineseSummaryAndLiteralWildcardsWithinSource() = runBlocking {

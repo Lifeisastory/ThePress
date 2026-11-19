@@ -15,5 +15,5 @@
     <string name="digest_select_none">清空选择</string>
     <string name="digest_save">保存简报设置</string>
     <string name="digest_saving">正在保存</string>
-    <string name="digest_settings_hint">生成时会把所选来源的标题、摘要和链接一次发送给 DeepSeek，调用费用由你的 API 账户承担；仅在点击生成后调用</string>
+    <string name="digest_settings_hint">提问或生成简报时会将对话和所选来源的相关资讯发送给 DeepSeek，调用费用由你的 API 账户承担；不会在浏览页面时自动调用模型</string>
 </resources>

@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -37,14 +41,15 @@ import com.aster.core.design_system.component.SystemInsets
 import com.aster.core.design_system.component.navigationBarHeight
 import com.aster.core.design_system.component.statusBarHeight
 import com.aster.core.design_system.component.liquid_glass.AppNavigationBar
+import com.aster.core.design_system.modifier.onPointerDown
 import com.aster.core.design_system.component.liquid_glass.AppNavigationItem
 import com.aster.feature.for_you.impl.ForYouPage
 import com.aster.feature.for_you.impl.SourceOrderDialog
 import com.aster.feature.for_you.impl.SourceOrderEditor
 import com.aster.feature.me.impl.ProfilePage
 import com.aster.feature.digest.impl.DigestPage
-import com.aster.core.data.repository.NewsDigestRepository
 import com.aster.core.data.repository.DigestSettingsRepository
+import com.aster.core.data.repository.DigestAgentRepository
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
@@ -52,8 +57,8 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 internal fun MainScreen(
     repository: NewsRepository,
     preferencesRepository: UserPreferencesRepository,
-    digestRepository: NewsDigestRepository,
     digestSettingsRepository: DigestSettingsRepository,
+    digestAgentRepository: DigestAgentRepository,
     onOpenSearch: () -> Unit,
     onOpenArticle: (String) -> Unit,
     isActive: Boolean,
@@ -62,6 +67,8 @@ internal fun MainScreen(
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.ForYou) }
     var forYouScrollToTop by remember { mutableStateOf<(() -> Unit)?>(null) }
     var sourceOrderEditor by remember { mutableStateOf<SourceOrderEditor?>(null) }
+    var digestOverlay by remember { mutableStateOf(false) }
+    var inputDismissRequest by remember { mutableIntStateOf(0) }
     val savedPages = rememberSaveableStateHolder()
     val items = MainTab.entries.map { AppNavigationItem(stringResource(it.labelRes), it.icon) }
     val backgroundColor = MaterialTheme.colorScheme.background
@@ -74,11 +81,13 @@ internal fun MainScreen(
     // 统一设计间距；页面避让高度单独计算，避免反馈到导航栏自身的测量
     val layoutPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
     var navigationBarHeightPx by remember { mutableIntStateOf(0) }
-    val safePadding = WindowInsets.safeDrawing.asPaddingValues()
+    val safePadding = WindowInsets.systemBars.union(WindowInsets.displayCutout).asPaddingValues()
     val topInset = maxOf(statusBarHeight(), safePadding.calculateTopPadding())
     val bottomInset = maxOf(navigationBarHeight(), safePadding.calculateBottomPadding())
+    val editingDigest = selectedTab == MainTab.Digest && WindowInsets.ime.getBottom(density) > 0
     // 实测高度包含玻璃栏外间距及底部系统安全区，取最大值避免重复累加
-    val bottomContentInset = maxOf(with(density) { navigationBarHeightPx.toDp() }, bottomInset)
+    // 简报页通过 imePadding 消费键盘 Insets，此处只传系统栏和导航栏的留白
+    val bottomContentInset = if (editingDigest) 0.dp else maxOf(with(density) { navigationBarHeightPx.toDp() }, bottomInset)
     val contentPadding = PaddingValues(
         start = layoutPadding.calculateStartPadding(layoutDirection),
         end = layoutPadding.calculateEndPadding(layoutDirection),
@@ -116,19 +125,19 @@ internal fun MainScreen(
                         onScrollToTopChanged = { forYouScrollToTop = it },
                         onEditSourceOrder = { sourceOrderEditor = it }
                     )
-                    MainTab.Digest -> DigestPage(contentPadding, digestRepository, digestSettingsRepository,
-                        onOpenArticle, onOpenSettings = { selectedTab = MainTab.Profile })
+                    MainTab.Digest -> DigestPage(contentPadding, digestSettingsRepository, digestAgentRepository,
+                        repository.sources, onOpenArticle,
+                        onOverlayChanged = { digestOverlay = it }, inputDismissRequest = inputDismissRequest)
                     MainTab.Profile -> ProfilePage(
                         contentPadding = contentPadding,
                         repository = repository,
                         preferencesRepository = preferencesRepository,
-                        digestSettingsRepository = digestSettingsRepository,
                         onOpenLink = onOpenArticle
                     )
                 }
             }
         }
-        AppNavigationBar(
+        if (!editingDigest && !digestOverlay) AppNavigationBar(
             items = items,
             selectedIndex = MainTab.entries.indexOf(selectedTab),
             onItemSelected = { selectedTab = MainTab.entries[it] },
@@ -138,6 +147,7 @@ internal fun MainScreen(
             modifier = Modifier
                 .then(if (sourceOrderEditor != null) Modifier.clearAndSetSemantics {} else Modifier)
                 .align(Alignment.BottomCenter)
+                .onPointerDown { inputDismissRequest++ }
                 .onSizeChanged { navigationBarHeightPx = it.height }
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                 .padding(

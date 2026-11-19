@@ -1,6 +1,9 @@
 package com.aster.thepress
 
 import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.DisposableEffect
 import androidx.annotation.StringRes
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.ui.test.assertIsDisplayed
@@ -23,15 +26,20 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.platform.app.InstrumentationRegistry
 import com.aster.core.data.repository.NewsRepository
 import com.aster.core.data.repository.UserPreferencesRepository
-import com.aster.core.data.repository.NewsDigestRepository
 import com.aster.core.data.repository.DigestSettingsRepository
+import com.aster.core.data.repository.DigestAgentRepository
+import com.aster.core.model.AgentEvent
+import com.aster.core.model.AgentMessage
+import com.aster.core.model.AgentStep
+import com.aster.core.model.AgentStepKind
+import com.aster.core.model.AgentConversation
+import com.aster.core.model.AgentConversationSummary
+import com.aster.core.model.AgentRole
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeRight
+import kotlinx.coroutines.CompletableDeferred
 import com.aster.core.model.DigestSettings
-import com.aster.core.model.NewsDigest
-import com.aster.core.model.DigestGenerationResult
-import com.aster.core.model.DigestDetail
-import com.aster.core.model.DigestItem
 import com.aster.core.model.DigestReference
-import com.aster.core.model.DigestSourceStatus
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import com.aster.core.model.AppearanceSettings
@@ -69,18 +77,37 @@ class AppNavigationTest {
             this.settings.value = settings.copy(hasApiKey = apiKey?.isNotBlank() ?: this.settings.value.hasApiKey)
         }
     }
-    private var generations = 0
-    private val digestSnapshot = MutableStateFlow<NewsDigest?>(null)
-    private val digests = object : NewsDigestRepository {
-        override fun observeLatestDigest() = digestSnapshot
-        override suspend fun generateDigest(): DigestGenerationResult {
-            generations++
-            digestSnapshot.value = NewsDigest(123, "deepseek-flash", DigestDetail.STANDARD,
-                listOf(DigestSourceStatus("baidu", "百度", 1, false)), 1,
-                listOf(DigestItem("测试简报", "合并后的新闻内容", listOf(
-                    DigestReference("n1", "baidu", "百度", "1", "原始报道", "摘要", "https://example.com/digest")
-                ))))
-            return DigestGenerationResult.Success
+    private var agentCalls = 0
+    private var agentMessages = emptyList<AgentMessage>()
+    private val agentSessions = mutableMapOf<Long, List<AgentMessage>>()
+    private val agentSummaries = MutableStateFlow<List<AgentConversationSummary>>(emptyList())
+    private var agentGate: CompletableDeferred<Unit>? = null
+    private val agent = object : DigestAgentRepository {
+        override fun observeConversations() = agentSummaries
+        override suspend fun loadConversation(id: Long?): AgentConversation? {
+            val key = id ?: agentSessions.keys.maxOrNull() ?: return null
+            return agentSessions[key]?.let { AgentConversation(key, it) }
+        }
+        override suspend fun saveConversation(id: Long?, messages: List<AgentMessage>): Long {
+            agentMessages = messages
+            val key = id ?: ((agentSessions.keys.maxOrNull() ?: 0L) + 1)
+            agentSessions[key] = messages
+            agentSummaries.value = agentSessions.entries.sortedByDescending { it.key }.map {
+                AgentConversationSummary(it.key, it.value.first().text, System.currentTimeMillis(), it.value.size)
+            }
+            return key
+        }
+        override fun reply(prompt: String, history: List<AgentMessage>) = flow {
+            agentCalls++
+            emit(AgentEvent.StepStarted(AgentStep("skill", "use_skill", "加载技能", "news-briefing", AgentStepKind.SKILL)))
+            emit(AgentEvent.StepFinished("skill", "根据来源整理简报", true))
+            emit(AgentEvent.StepStarted(AgentStep("search", "search_news", "查询资讯", "科技")))
+            emit(AgentEvent.StepFinished("search", "找到一条报道", true))
+            emit(AgentEvent.References(listOf(DigestReference("n1", "baidu", "百度", "1", "原始报道", "摘要", "https://example.com/agent"))))
+            emit(AgentEvent.TextDelta("今日重点："))
+            agentGate?.await()
+            emit(AgentEvent.TextDelta("\n\n这是一份**基于所选来源**整理的测试简报\n\n- 核对事实\n- 保留来源"))
+            emit(AgentEvent.Completed)
         }
     }
     private val preferences = object : UserPreferencesRepository {
@@ -92,14 +119,21 @@ class AppNavigationTest {
     }
     private lateinit var appState: AppState
     private lateinit var backDispatcher: OnBackPressedDispatcher
+    private lateinit var hostActivity: ComponentActivity
 
     private fun render(): StateRestorationTester {
         val restoration = StateRestorationTester(compose)
         restoration.setContent {
             appState = rememberAppState()
             backDispatcher = checkNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
+            hostActivity = LocalOnBackPressedDispatcherOwner.current as ComponentActivity
+            DisposableEffect(hostActivity) {
+                hostActivity.enableEdgeToEdge()
+                hostActivity.window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+                onDispose { }
+            }
             AppTheme { App(repository = repository, preferencesRepository = preferences, appState = appState,
-                digestRepository = digests, digestSettingsRepository = digestSettings) }
+                digestSettingsRepository = digestSettings, digestAgentRepository = agent) }
         }
         compose.waitUntil { repository.observations >= 1 }
         compose.waitForIdle()
@@ -119,36 +153,97 @@ class AppNavigationTest {
     )
 
     @Test
-    fun digestSettingsGenerationAndCitationUseExistingWebViewNavigation() {
+    fun agentSettingsDialogIsIndependentOfProfile() {
         render()
         selectTab(DigestR.string.feature_digest_title)
-        compose.onNodeWithTag("digest_generate").assertIsNotEnabled()
+        compose.onNodeWithTag("agent_send").assertIsNotEnabled()
         compose.onNodeWithTag("digest_open_settings").performClick()
-        scrollToProfileSetting("digest_api_key")
+        captureScreenshot("agent-settings")
+        scrollToAgentSetting("digest_api_key")
         compose.onNodeWithTag("digest_api_key").performTextInput("test-key")
         compose.onNodeWithTag("digest_api_key").performImeAction()
-        scrollToProfileSetting("digest_source_picker")
+        scrollToAgentSetting("digest_source_picker")
         compose.onNodeWithTag("digest_source_picker").performClick()
-        scrollToProfileSetting("digest_source_baidu")
+        scrollToAgentSetting("digest_source_baidu")
         compose.onNodeWithTag("digest_source_baidu").performClick()
-        scrollToProfileSetting("digest_save_settings")
+        scrollToAgentSetting("digest_save_settings")
         compose.onNodeWithTag("digest_save_settings").performClick()
         compose.waitUntil { digestSettings.settings.value.hasApiKey }
-        compose.runOnIdle {
-            assertEquals(setOf("baidu"), digestSettings.settings.value.sourceIds)
-            assertEquals(0, generations)
-        }
+        compose.runOnIdle { assertEquals(setOf("baidu"), digestSettings.settings.value.sourceIds) }
+        compose.onNodeWithTag("digest_close_settings").performClick()
+        selectTab(MeR.string.feature_me_title)
+        compose.onNodeWithTag("digest_api_key").assertDoesNotExist()
         selectTab(DigestR.string.feature_digest_title)
-        compose.onNodeWithTag("digest_generate").performClick()
-        compose.onNodeWithTag("digest_page").performScrollToNode(hasTestTag("digest_link_n1"))
-        compose.onNodeWithTag("digest_link_n1").performClick()
-        compose.onNodeWithTag("webview_screen").assertIsDisplayed()
-        compose.runOnIdle {
-            assertEquals(listOf(MainNavKey, WebViewNavKey("https://example.com/digest")), appState.navigationState.backStack.toList())
-            assertEquals(1, generations)
+        compose.onNodeWithTag("digest_open_settings").performClick()
+        compose.onNodeWithTag("digest_settings_scroll").assertIsDisplayed()
+        compose.onNodeWithTag("digest_close_settings").performClick()
+    }
+
+    @Test
+    fun assistantStreamsShowsSkillsAndToolsAndOpensSources() {
+        digestSettings.settings.value = DigestSettings(setOf("baidu"), hasApiKey = true)
+        agentGate = CompletableDeferred()
+        render()
+        selectTab(DigestR.string.feature_digest_title)
+        compose.runOnIdle { assertEquals(0, agentCalls) }
+        compose.onNodeWithTag("agent_input").assertDoesNotExist()
+        compose.onNodeWithTag("agent_send").performClick()
+        compose.onNodeWithTag("agent_input").performTextInput("整理科技简报")
+        compose.waitUntil(5000) {
+            androidx.core.view.ViewCompat.getRootWindowInsets(hostActivity.window.decorView)
+                ?.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())?.bottom?.let { it > 0 } == true
         }
+        captureScreenshot("agent-input")
+        var imeHeight = 0
+        var windowHeight = 0
+        compose.runOnIdle {
+            imeHeight = androidx.core.view.ViewCompat.getRootWindowInsets(hostActivity.window.decorView)!!
+                .getInsets(androidx.core.view.WindowInsetsCompat.Type.ime()).bottom
+            windowHeight = hostActivity.window.decorView.height
+        }
+        val inputBottom = compose.onNodeWithTag("agent_input").fetchSemanticsNode().boundsInRoot.bottom
+        compose.onNodeWithTag("digest_history").assertIsDisplayed()
+        org.junit.Assert.assertTrue("输入区应贴近键盘上缘", windowHeight - imeHeight - inputBottom < 90)
+        compose.onNodeWithTag("agent_input").performImeAction()
+        compose.waitUntil { agentCalls == 1 }
+        compose.onNodeWithTag("agent_input").assertDoesNotExist()
+        compose.onNodeWithTag("digest_page").performScrollToNode(hasText("今日重点："))
+        compose.onNodeWithText("今日重点：").assertIsDisplayed()
+        compose.onNodeWithTag("agent_stop").assertIsDisplayed()
+        compose.runOnIdle { agentGate!!.complete(Unit) }
+        compose.waitUntil { agentMessages.lastOrNull()?.text?.contains("测试简报") == true }
+        compose.onNodeWithTag("agent_step_skill").assertDoesNotExist()
+        compose.onNodeWithTag("digest_page").performScrollToNode(hasText("工具与技能 · 2 项"))
+        compose.onNodeWithText("工具与技能 · 2 项").performClick()
+        compose.onNodeWithText("加载技能").assertIsDisplayed()
+        compose.onNodeWithText("查询资讯").assertIsDisplayed()
+        compose.onNodeWithTag("agent_step_detail_skill").assertDoesNotExist()
+        compose.onNodeWithTag("agent_step_skill").performClick()
+        compose.onNodeWithTag("agent_step_detail_skill").assertIsDisplayed()
+        compose.onNodeWithTag("agent_step_skill").performClick()
+        compose.onNode(hasText("**基于所选来源**", substring = true)).assertDoesNotExist()
+        val userBounds = compose.onNodeWithTag("agent_message_${agentMessages.first().id}").fetchSemanticsNode().boundsInRoot
+        val assistantBounds = compose.onNodeWithTag("agent_message_${agentMessages.last().id}").fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue(userBounds.left > assistantBounds.left)
+        org.junit.Assert.assertTrue(userBounds.width < assistantBounds.width)
+        captureScreenshot("agent-ui")
+        compose.onNodeWithTag("digest_page").performScrollToNode(hasText("查看本次查阅的 1 条来源"))
+        compose.onNodeWithText("查看本次查阅的 1 条来源").performClick()
+        compose.onNodeWithTag("digest_page").performScrollToNode(hasTestTag("agent_source_n1"))
+        compose.onNodeWithTag("agent_source_n1").performClick()
+        compose.onNodeWithTag("webview_screen").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(WebViewNavKey("https://example.com/agent"), appState.navigationState.currentKey) }
         compose.onNodeWithTag("webview_close").performClick()
-        compose.onNodeWithText("测试简报").assertIsDisplayed()
+        compose.onNodeWithTag("agent_new").performClick()
+        compose.onNodeWithTag("agent_input").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(1, agentSessions.size) }
+        compose.onNodeWithTag("digest_side_by_side").performTouchInput { swipeRight() }
+        compose.onNodeWithTag("agent_conversation_1").assertIsDisplayed()
+        captureScreenshot("agent-history")
+        compose.onNodeWithTag("agent_conversation_1").performClick()
+        compose.onNodeWithTag("digest_page").performScrollToNode(hasText("整理科技简报"))
+        compose.onNodeWithText("整理科技简报").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(1, agentCalls) }
     }
 
     @Test
@@ -164,14 +259,21 @@ class AppNavigationTest {
         tab(ForYouR.string.feature_for_you_title).assertIsSelected()
     }
 
-    // 列表视口延伸到悬浮导航栏后方，点击前将控件滚动到可交互区域
-    private fun scrollToProfileSetting(tag: String) {
-        val settings = compose.onNodeWithTag("profile_settings")
+    private fun scrollToAgentSetting(tag: String) {
+        val settings = compose.onNodeWithTag("digest_settings_scroll")
         settings.performScrollToNode(hasTestTag(tag))
-        val bottom = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.bottom
-        val navigationTop = compose.onNodeWithTag("liquid_glass_navigation_tabs").fetchSemanticsNode().boundsInRoot.top
-        if (bottom > navigationTop - 32f) {
-            settings.performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, bottom - navigationTop + 32f) }
+    }
+
+    private fun captureScreenshot(name: String) {
+        compose.mainClock.advanceTimeBy(300)
+        compose.waitForIdle()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        checkNotNull(instrumentation.uiAutomation.takeScreenshot()).let { bitmap ->
+            val screenshot = java.io.File(instrumentation.targetContext.getExternalFilesDir(null), "$name.png")
+            screenshot.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+            instrumentation.uiAutomation.executeShellCommand("cp ${screenshot.absolutePath} /data/local/tmp/thepress-$name.png")
+                .use { descriptor -> android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).readBytes() }
         }
     }
 

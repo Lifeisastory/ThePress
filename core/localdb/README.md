@@ -12,7 +12,11 @@
 
 网络失败不会覆盖缓存或更新有效期，界面保留数据库中的旧内容。同一仓库内同一来源的并发刷新串行检查缓存，不同来源可以并行刷新。数据库读写异常通过 `core:analytics` 的 `Logger` 提交 `cache_failed` 事件；读取有效期失败仍可尝试网络，写入失败则返回 `NewsRefreshResult.Failure(STORAGE)`，不会将未落库内容交给界面。协程取消正常向上传递。
 
-当前 schema 版本为 2，使用 Room 自动迁移从版本 1 添加可空的 `imageUrl`，保留已有缓存。导出的 Room schema 位于 `schemas/com.aster.core.localdb.AppDataBase/`，入口类改名不改变表结构和版本。
+当前 schema 版本为 6，保留 1→2→3→4→5→6 的 Room 自动迁移链，版本 5 引入 `agent_conversation`，版本 6 为该表添加标题、更新时间和消息数，原有会话 payload、新闻缓存和结构化简报都会保留
+
+`AgentConversationDao` 按 ID 读取和保存会话，以轻量摘要流提供历史列表；新 ID 的分配与首次保存位于同一 Room 事务中，payload 的序列化与中断状态恢复归属 data 层，不保存模型凭据，清理新闻缓存不会删除会话或简报
+
+导出的 Room schema 位于 `schemas/com.aster.core.localdb.AppDataBase/`
 
 `NewsCacheDao.observeArticles` 持续发出完整文章快照。`NewsRepository.observeNews` 将其映射为共享模型，推荐页订阅该流恢复内容，并持续响应数据库变化；观察本身不联网，也不受十分钟有效期限制。独立的 `refresh` 只返回完成状态，手动刷新仍遵守相同有效期。
 

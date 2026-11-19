@@ -23,13 +23,15 @@ fun AppIconButton(
     contentDescription: String,
     onClick: () -> Unit,
     backdrop: Backdrop,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     val surface = MaterialTheme.colorScheme.surface.copy(
         alpha = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) 0.94f else 0.4f
     )
     IconButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.size(48.dp).drawBackdrop(
             backdrop = backdrop,
             shape = { CircleShape },
@@ -41,6 +43,6 @@ fun AppIconButton(
             onDrawSurface = { drawRect(surface) }
         )
     ) {
-        Icon(icon, contentDescription, tint = MaterialTheme.colorScheme.onSurface)
+        Icon(icon, contentDescription, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f))
     }
 }

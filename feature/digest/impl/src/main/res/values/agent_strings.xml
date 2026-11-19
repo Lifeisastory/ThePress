@@ -1,0 +1,18 @@
+<resources>
+    <string name="agent_settings_saved">设置已保存</string>
+    <string name="agent_settings_save_failed">保存失败，请重试</string>
+    <string name="agent_history">聊天记录</string>
+    <string name="agent_history_open">聊天记录</string>
+    <string name="agent_history_failed">历史记录暂时无法读取</string>
+    <string name="agent_composer_expand">展开输入框</string>
+    <string name="agent_back">返回资讯助手</string>
+    <string name="agent_new">新对话</string>
+    <string name="agent_input_hint">问问你关心的资讯…</string>
+    <string name="agent_send">发送</string>
+    <string name="agent_stop">停止回答</string>
+    <string name="agent_retry">重试这次提问</string>
+    <string name="agent_latest">查看最新内容</string>
+    <string name="agent_reload">会话读取失败，点击重试</string>
+    <string name="agent_save_again">会话未保存，点击重试保存</string>
+    <string name="agent_step_limit">本次查询步骤较多，已停止自动执行，请缩小问题范围后重试</string>
+</resources>

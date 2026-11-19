@@ -1,6 +1,23 @@
-# 摘要生成能力
+# 摘要生成与 Agent 运行
 
-`core:agent` 提供 LLM 调用和新闻摘要生成能力。模块依赖 `core:model` 的共享输入、输出类型，以及 `core:analytics` 的通用请求日志；不依赖 `core:data`、数据库或偏好存储。
+`core:agent` 提供 LLM 调用、流式 Agent 循环和新闻摘要生成能力。模块依赖 `core:model` 的共享契约、`core:analytics` 的通用请求日志和 `core:network` 的 SSE 传输；不依赖 `core:data`、数据库或偏好存储
+
+## 资讯助手
+
+- `DeepSeekAgentClient` 将 DeepSeek Chat Completions 流转换为文本、工具参数分片和结束事件，要求完整的结束标志后才执行工具
+- `runtime/StreamingAgent` 负责模型与工具的多轮循环，合并工具参数、回传工具结果、加载技能和发出 `AgentEvent`，不读取业务仓库
+- `runtime/AgentModelClient` 是可替换的模型接口，`AgentTool` 由 data 层注册业务操作
+- `skills/AssetAgentSkillStore` 从 `assets/agent_skills/<name>/SKILL.md` 发现技能，`use_skill` 按需读取正文与引用文件
+- 首版内置 `news-briefing`、`topic-analysis`，元数据支持单行 `name`、`description`，引用资源限定在技能目录内的 md/txt/json 文件
+- 技能使用已注册 Kotlin 工具，不附带 Python/Shell 运行时或第三方技能导入界面
+
+每轮最多十次模型调用、每步最多三十二次工具调用，模型输入上限 120000 字符，单步文本上限 64000 字符，工具参数与结果上限 32000 字符
+
+取消向上传递到模型连接及工具执行，工具参数错误作为失败结果回传模型，连接失败或断流不自动重试，避免重复执行工具
+
+`AGENT_STEP`、`AGENT_TOOL` 使用已有请求日志，仅记录模型、步数和执行结果，不记录 API Key、对话正文或技能全文
+
+## 原有结构化简报
 
 - `LlmClient`：模型调用接口，可注入测试实现；`DeepSeekClient` 负责实际 HTTP 请求与响应解析。
 - `generator/DigestGenerator`：构造提示词、调用模型、校验响应、还原引用，并将漏引新闻补充为带有原文标记的条目。

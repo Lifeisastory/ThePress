@@ -44,10 +44,11 @@ data class NewsDigest(
     val items: List<DigestItem>
 )
 
+@Serializable
 enum class DigestFailure {
     NOT_CONFIGURED, NO_SOURCES, NO_NEWS, INPUT_TOO_LARGE, BUSY,
     CONNECTION, TIMEOUT, AUTHENTICATION, BALANCE, RATE_LIMIT, SERVER,
-    INVALID_RESPONSE, STORAGE
+    INVALID_RESPONSE, STORAGE, STEP_LIMIT
 }
 
 sealed interface DigestGenerationResult {

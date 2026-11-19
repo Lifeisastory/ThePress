@@ -3,6 +3,7 @@ plugins { id("thepress.android.library") }
 android { namespace = "com.aster.core.agent" }
 
 dependencies {
+    implementation(project(":core:network"))
     api(project(":core:model"))
     api(project(":core:analytics"))
     implementation(libs.okhttp)

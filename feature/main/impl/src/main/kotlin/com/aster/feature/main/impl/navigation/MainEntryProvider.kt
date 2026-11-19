@@ -4,16 +4,16 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.aster.core.data.repository.NewsRepository
 import com.aster.core.data.repository.UserPreferencesRepository
-import com.aster.core.data.repository.NewsDigestRepository
 import com.aster.core.data.repository.DigestSettingsRepository
+import com.aster.core.data.repository.DigestAgentRepository
 import com.aster.feature.main.api.navigation.MainNavKey
 import com.aster.feature.main.impl.MainScreen
 
 fun EntryProviderScope<NavKey>.mainEntry(
     repository: NewsRepository,
     preferencesRepository: UserPreferencesRepository,
-    digestRepository: NewsDigestRepository,
     digestSettingsRepository: DigestSettingsRepository,
+    digestAgentRepository: DigestAgentRepository,
     onOpenSearch: () -> Unit,
     onOpenArticle: (String) -> Unit,
     isActive: () -> Boolean
@@ -22,8 +22,8 @@ fun EntryProviderScope<NavKey>.mainEntry(
         MainScreen(
             repository = repository,
             preferencesRepository = preferencesRepository,
-            digestRepository = digestRepository,
             digestSettingsRepository = digestSettingsRepository,
+            digestAgentRepository = digestAgentRepository,
             onOpenSearch = onOpenSearch,
             onOpenArticle = onOpenArticle,
             isActive = isActive()

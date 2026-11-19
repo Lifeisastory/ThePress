@@ -12,7 +12,7 @@
 | `feature/main/api` | MainNavKey，供应用设置起始路由与识别当前路由 |
 | `feature/main/impl` | MainScreen、MainTab、各 Page 的状态保存、系统边距、悬浮玻璃导航栏和 mainEntry 注册函数 |
 | `feature/for_you/api`、`feature/for_you/impl` | 推荐 Tab 标题资源、ForYouPage、ForYouViewModel、来源切换与排序 |
-| `feature/digest/api`、`feature/digest/impl` | 简报 Tab 标题资源、DigestPage、DigestViewModel、简报生成与阅读 |
+| `feature/digest/api`、`feature/digest/impl` | 流式资讯助手、并排展开的半屏会话历史、页内助手设置弹窗 |
 | `feature/me/impl` | ProfilePage、ProfileViewModel，主题与颜色选择、资讯缓存统计与清除、项目地址和致谢 |
 | `feature/webview/api`、`feature/webview/impl` | 携带 URL 的 WebViewNavKey、应用内网页、网页历史状态和 webViewEntry 注册函数 |
 
@@ -28,7 +28,7 @@ ProfilePage 使用带 contentPadding 的 LazyColumn 分组展示设置，复用 
 
 资讯缓存的条数与内容大小通过 NewsRepository.observeCacheStats() 实时观察；大小仅统计缓存文本字段的 UTF-8 字节数，不代表整个数据库文件、图片或 WebView 占用。清除操作在页内二次确认，与正在进行的来源刷新互斥，删除快照及其有效期，保留外观和来源排序；清理后推荐页与搜索通过数据库观察流更新。项目地址和致谢链接通过 Main 的 onOpenArticle 回调进入应用内 WebView。
 
-Tab 切换不修改应用返回栈，也不保留 Tab 访问历史。系统返回先关闭独立路由；在 Main 的简报或我的页面返回时切回推荐页，推荐页根页面交由 Activity 处理退出。主 Tab 通过底部玻璃栏切换，推荐页的水平滑动只用于切换数据源。
+Tab 切换不修改应用返回栈，也不保留 Tab 访问历史。系统返回先关闭独立路由；简报页优先关闭设置弹窗、收起输入框或关闭历史面板，再由 Main 切回推荐页。主 Tab 通过底部玻璃栏切换，推荐页水平滑动切换数据源，简报页右滑展开左侧半屏聊天历史
 
 MainScreen 独占玻璃导航栏及其背景采样，计算系统安全区和底栏占用后，通过 `contentPadding` 传给各 Page。ForYouPage 将头尾留白用于列表内容，列表视口仍延伸到状态栏和底部系统导航栏后方。SearchScreen 自行处理系统栏和键盘安全区，不预留 Main 底栏高度。布局使用 Box 与 SystemInsets，不依赖 Scaffold。
 

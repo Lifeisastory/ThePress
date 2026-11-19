@@ -1,5 +1,7 @@
 # network
 
+`EventStreamClient` 提供可取消的 POST SSE 传输，处理响应状态、逐帧读取、心跳忽略、多行 data 和帧大小上限；不解释模型协议，流结束与工具参数完整性由 `core:agent` 校验
+
 网络请求与来源适配模块，提供共享 OkHttp 客户端、Retrofit Service、协程结果封装，以及按来源配置选择的请求、提取和映射工具。
 
 应用在 `NewsRepository` 层通过统一 `Logger` 记录数据请求的开始/完成，明确标记 `NETWORK` 或 `LOCAL_DATABASE`，完成时输出解析后的文章 JSON。命中缓存时仍有数据库读取日志；来源加载失败继续提交 `source_failed`。日志开关、级别、格式、脱敏和长响应分段由 `core:analytics` 管理，统一标签为 `ThePress`。详见 [统一日志](../analytics/README.md)。
